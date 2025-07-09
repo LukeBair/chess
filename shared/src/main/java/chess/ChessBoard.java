@@ -1,5 +1,9 @@
 package chess;
 
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Objects;
+
 /**
  * A chessboard that can hold and rearrange chess pieces.
  * <p>
@@ -7,9 +11,12 @@ package chess;
  * signature of the existing methods.
  */
 public class ChessBoard {
-    private final ChessPiece[][] board = new ChessPiece[8][8];
+    private final ChessPiece[][] spaces = new ChessPiece[8][8];
+//    private final HashMap<>
 
-    public ChessBoard() {    }
+    public ChessBoard() {
+        
+    }
 
     /**
      * Adds a chess piece to the chessboard
@@ -18,7 +25,7 @@ public class ChessBoard {
      * @param piece    the piece to add
      */
     public void addPiece(ChessPosition position, ChessPiece piece) {
-        board[position.getColumn()][position.getRow()] = piece;
+        spaces[position.getColumn() - 1][position.getRow() - 1] = piece;
     }
 
     /**
@@ -29,7 +36,7 @@ public class ChessBoard {
      * position
      */
     public ChessPiece getPiece(ChessPosition position) {
-        return board[position.getColumn()][position.getRow()];
+        return spaces[position.getColumn() - 1][position.getRow() - 1];
     }
 
     /**
@@ -37,27 +44,38 @@ public class ChessBoard {
      * (How the game of chess normally starts)
      */
     public void resetBoard() {
-        for (int y = 0; y < 8; y++) {
-            board[y][1] = ChessGame.BLACK_PAWN;
-            board[y][6] = ChessGame.WHITE_PAWN;
+        for(int i = 0; i < 8; i++) {
+            spaces[i][1] = ChessGame.WHITE_PAWN;
+            spaces[i][6] = ChessGame.BLACK_PAWN;
         }
 
-        board[0][0] = ChessGame.BLACK_ROOK;
-        board[7][0] = ChessGame.BLACK_ROOK;
-        board[1][0] = ChessGame.BLACK_KNIGHT;
-        board[6][0] = ChessGame.BLACK_KNIGHT;
-        board[2][0] = ChessGame.BLACK_BISHOP;
-        board[5][0] = ChessGame.BLACK_BISHOP;
-        board[3][0] = ChessGame.BLACK_QUEEN;
-        board[4][0] = ChessGame.BLACK_KING;
+        spaces[0][0] = ChessGame.WHITE_ROOK;
+        spaces[1][0] = ChessGame.WHITE_KNIGHT;
+        spaces[2][0] = ChessGame.WHITE_BISHOP;
+        spaces[3][0] = ChessGame.WHITE_KING;
+        spaces[4][0] = ChessGame.WHITE_QUEEN;
+        spaces[5][0] = ChessGame.WHITE_BISHOP;
+        spaces[6][0] = ChessGame.WHITE_KNIGHT;
+        spaces[7][0] = ChessGame.WHITE_ROOK;
 
-        board[0][7] = ChessGame.WHITE_ROOK;
-        board[7][7] = ChessGame.WHITE_ROOK;
-        board[1][7] = ChessGame.WHITE_KNIGHT;
-        board[6][7] = ChessGame.WHITE_KNIGHT;
-        board[2][7] = ChessGame.WHITE_BISHOP;
-        board[5][7] = ChessGame.WHITE_BISHOP;
-        board[3][7] = ChessGame.WHITE_QUEEN;
-        board[4][7] = ChessGame.WHITE_KING;
+        spaces[0][7] = ChessGame.BLACK_ROOK;
+        spaces[1][7] = ChessGame.BLACK_KNIGHT;
+        spaces[2][7] = ChessGame.BLACK_BISHOP;
+        spaces[3][7] = ChessGame.BLACK_KING;
+        spaces[4][7] = ChessGame.BLACK_QUEEN;
+        spaces[5][7] = ChessGame.BLACK_BISHOP;
+        spaces[6][7] = ChessGame.BLACK_KNIGHT;
+        spaces[7][7] = ChessGame.BLACK_ROOK;
+    }
+
+    @Override
+    public int hashCode() {
+        return Arrays.deepHashCode(spaces);
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (obj.getClass() != ChessBoard.class) return false;
+        return Arrays.deepEquals(((ChessBoard) obj).spaces, spaces);
     }
 }

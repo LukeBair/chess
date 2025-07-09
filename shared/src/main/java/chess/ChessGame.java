@@ -9,31 +9,34 @@ import java.util.Collection;
  * signature of the existing methods.
  */
 public class ChessGame {
-    public static final ChessPiece BLACK_PAWN = new ChessPiece(ChessGame.TeamColor.BLACK, ChessPiece.PieceType.PAWN);
-    public static final ChessPiece WHITE_PAWN = new ChessPiece(ChessGame.TeamColor.WHITE, ChessPiece.PieceType.PAWN);
-    public static final ChessPiece BLACK_ROOK = new ChessPiece(ChessGame.TeamColor.BLACK, ChessPiece.PieceType.ROOK);
-    public static final ChessPiece WHITE_ROOK = new ChessPiece(ChessGame.TeamColor.WHITE, ChessPiece.PieceType.ROOK);
-    public static final ChessPiece BLACK_KNIGHT = new ChessPiece(ChessGame.TeamColor.BLACK, ChessPiece.PieceType.KNIGHT);
-    public static final ChessPiece WHITE_KNIGHT = new ChessPiece(ChessGame.TeamColor.WHITE, ChessPiece.PieceType.KNIGHT);
-    public static final ChessPiece BLACK_BISHOP = new ChessPiece(ChessGame.TeamColor.BLACK, ChessPiece.PieceType.BISHOP);
-    public static final ChessPiece WHITE_BISHOP = new ChessPiece(ChessGame.TeamColor.WHITE, ChessPiece.PieceType.BISHOP);
-    public static final ChessPiece BLACK_KING = new ChessPiece(ChessGame.TeamColor.BLACK, ChessPiece.PieceType.KING);
-    public static final ChessPiece WHITE_KING = new ChessPiece(ChessGame.TeamColor.WHITE, ChessPiece.PieceType.KING);
-    public static final ChessPiece BLACK_QUEEN = new ChessPiece(ChessGame.TeamColor.BLACK, ChessPiece.PieceType.QUEEN);
-    public static final ChessPiece WHITE_QUEEN = new ChessPiece(ChessGame.TeamColor.WHITE, ChessPiece.PieceType.QUEEN);
+
+    public final static ChessPiece WHITE_PAWN = new ChessPiece(TeamColor.WHITE, ChessPiece.PieceType.PAWN);
+    public final static ChessPiece WHITE_ROOK = new ChessPiece(TeamColor.WHITE, ChessPiece.PieceType.ROOK);
+    public final static ChessPiece WHITE_KNIGHT = new ChessPiece(TeamColor.WHITE, ChessPiece.PieceType.KNIGHT);
+    public final static ChessPiece WHITE_BISHOP = new ChessPiece(TeamColor.WHITE, ChessPiece.PieceType.BISHOP);
+    public final static ChessPiece WHITE_QUEEN = new ChessPiece(TeamColor.WHITE, ChessPiece.PieceType.KING);
+    public final static ChessPiece WHITE_KING = new ChessPiece(TeamColor.WHITE, ChessPiece.PieceType.QUEEN);
+
+    public final static ChessPiece BLACK_PAWN = new ChessPiece(TeamColor.BLACK, ChessPiece.PieceType.PAWN);
+    public final static ChessPiece BLACK_ROOK = new ChessPiece(TeamColor.BLACK, ChessPiece.PieceType.ROOK);
+    public final static ChessPiece BLACK_KNIGHT = new ChessPiece(TeamColor.BLACK, ChessPiece.PieceType.KNIGHT);
+    public final static ChessPiece BLACK_BISHOP = new ChessPiece(TeamColor.BLACK, ChessPiece.PieceType.BISHOP);
+    public final static ChessPiece BLACK_QUEEN = new ChessPiece(TeamColor.BLACK, ChessPiece.PieceType.KING);
+    public final static ChessPiece BLACK_KING = new ChessPiece(TeamColor.BLACK, ChessPiece.PieceType.QUEEN);
 
 
-    private TeamColor teamsTurn = TeamColor.WHITE;
+    private TeamColor currentTeamTurn = TeamColor.WHITE;
+    private ChessBoard board = new ChessBoard();
 
     public ChessGame() {
-
+        board.resetBoard();
     }
 
     /**
      * @return Which team's turn it is
      */
     public TeamColor getTeamTurn() {
-        return teamsTurn;
+        return currentTeamTurn;
     }
 
     /**
@@ -42,7 +45,7 @@ public class ChessGame {
      * @param team the team whose turn it is
      */
     public void setTeamTurn(TeamColor team) {
-        teamsTurn = team;
+        currentTeamTurn = team;
     }
 
     /**
@@ -61,7 +64,7 @@ public class ChessGame {
      * startPosition
      */
     public Collection<ChessMove> validMoves(ChessPosition startPosition) {
-        throw new RuntimeException("Not implemented");
+        return board.getPiece(startPosition).pieceMoves(board, startPosition);
     }
 
     /**
@@ -71,7 +74,12 @@ public class ChessGame {
      * @throws InvalidMoveException if move is invalid
      */
     public void makeMove(ChessMove move) throws InvalidMoveException {
-        throw new RuntimeException("Not implemented");
+        var validMoves = board.getPiece(move.getStartPosition()).pieceMoves(board, move.getStartPosition());
+        boolean isValid = validMoves.stream().anyMatch((i) -> i.getEndPosition().equals(move.getEndPosition()));
+        if (!isValid) throw new InvalidMoveException();
+
+        board.addPiece(move.getEndPosition(), board.getPiece(move.getStartPosition()));
+        board.addPiece(move.getStartPosition(), null);
     }
 
     /**
@@ -111,7 +119,7 @@ public class ChessGame {
      * @param board the new board to use
      */
     public void setBoard(ChessBoard board) {
-        throw new RuntimeException("Not implemented");
+        this.board = board;
     }
 
     /**
@@ -120,6 +128,6 @@ public class ChessGame {
      * @return the chessboard
      */
     public ChessBoard getBoard() {
-        throw new RuntimeException("Not implemented");
+        return board;
     }
 }
