@@ -6,6 +6,7 @@ import model.AuthData;
 import model.ErrorModel;
 import model.LogoutHeader;
 import model.UserData;
+import org.eclipse.jetty.util.log.Log;
 import spark.Request;
 import spark.Response;
 
@@ -21,12 +22,12 @@ public class UserService {
 
             if (!input.isValid()) {
                 res.status(400);
-                return serializer.toJson(new ErrorModel("Error: already taken"));
+                return serializer.toJson(new ErrorModel("Error: bad request"));
             }
 
             if(DataAccess.INSTANCE.userExists(input.username())) {
                 res.status(403);
-                return serializer.toJson(new ErrorModel("Error: user already exists"));
+                return serializer.toJson(new ErrorModel("Error: already Taken"));
             }
 
             //TODO: email validation ???
@@ -61,7 +62,7 @@ public class UserService {
                 res.status(401);
                 return serializer.toJson(new ErrorModel("Error: unauthorized"));
             }
-            var authData = DataAccess.INSTANCE.getAuthData(input.username());
+            var authData = DataAccess.INSTANCE.getAuthDataByUsername(input.username());
             res.status(200);
             return serializer.toJson(authData);
         } catch (Exception e) {
@@ -72,14 +73,16 @@ public class UserService {
 
     public String logout(Request req, Response res) {
         try {
-            LogoutHeader logoutHeader = serializer.fromJson(req.body(), LogoutHeader.class);
+            LogoutHeader logoutHeader = new LogoutHeader(req.headers("authorization"));
 
-            if (!DataAccess.INSTANCE.authDataExists(logoutHeader.authorization())) {
+            if (!DataAccess.INSTANCE.authDataExistsByAuthToken(logoutHeader.authorization())) {
                 res.status(401);
                 return serializer.toJson(new ErrorModel("Error: unauthorized"));
             }
-            DataAccess.INSTANCE.removeUser(DataAccess.INSTANCE.getAuthData(logoutHeader.authorization()).username());
-            DataAccess.INSTANCE.removeAuthData(logoutHeader.authorization());
+            String username = DataAccess.INSTANCE.getAuthDataByAuthToken(logoutHeader.authorization()).username();
+
+            DataAccess.INSTANCE.removeUser(username);
+            DataAccess.INSTANCE.removeAuthData(username);
             res.status(200);
             return "";
         } catch (Exception e) {

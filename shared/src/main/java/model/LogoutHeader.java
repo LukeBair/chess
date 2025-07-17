@@ -1,3 +1,5 @@
 package model;
 
-public record LogoutHeader (String authorization) { }
+public record LogoutHeader (String authorization) {
+
+}

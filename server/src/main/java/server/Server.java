@@ -1,5 +1,6 @@
 package server;
 
+import dataacess.DataAccess;
 import service.GameService;
 import service.UserService;
 import spark.*;
@@ -16,8 +17,7 @@ public class Server {
 
         Spark.delete("/db", (req, res) -> {;
             try {
-                // Logic to delete the database
-                // go to data access or smt
+                DataAccess.INSTANCE.clear();
                 res.status(200);
                 return "";
             } catch (Exception e) {

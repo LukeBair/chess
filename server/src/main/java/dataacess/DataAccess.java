@@ -33,16 +33,26 @@ public class DataAccess {
         authDataMap.put(authData.username(), authData);
     }
 
-    public AuthData getAuthData(String authToken) {
-        return authDataMap.get(authToken);
+    public AuthData getAuthDataByUsername(String username) {
+        return authDataMap.get(username);
     }
 
-    public boolean authDataExists(String authToken) {
-        return authDataMap.containsKey(authToken);
+    // This is kinda stupid but it works
+    public AuthData getAuthDataByAuthToken(String authToken) {
+        return authDataMap.values().stream().filter(authData -> authData.authToken().equals(authToken)).findFirst().orElse(null);
     }
 
-    public void removeAuthData(String authToken) {
-        authDataMap.remove(authToken);
+    // This is kinda stupid but it works
+    public boolean authDataExistsByAuthToken(String authToken) {
+        return authDataMap.values().stream().anyMatch(authData -> authData.authToken().equals(authToken));
+    }
+
+    public boolean authDataExistsByUsername(String username) {
+        return authDataMap.containsKey(username);
+    }
+
+    public void removeAuthData(String username) {
+        authDataMap.remove(username);
     }
 
     public void addGameData(GameData gameData) {
@@ -59,5 +69,15 @@ public class DataAccess {
 
     public void removeGameData(Integer gameId) {
         gameDataHashMap.remove(gameId);
+    }
+
+    public void clear() {
+        userDataMap.clear();
+        authDataMap.clear();
+        gameDataHashMap.clear();
+    }
+
+    public GameData[] getAllGames() {
+        return gameDataHashMap.values().toArray(new GameData[0]);
     }
 }
