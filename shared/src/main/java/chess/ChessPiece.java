@@ -1,5 +1,6 @@
 package chess;
 
+import java.util.ArrayList;
 import java.util.Collection;
 
 /**
@@ -51,6 +52,42 @@ public class ChessPiece {
      * @return Collection of valid moves
      */
     public Collection<ChessMove> pieceMoves(ChessBoard board, ChessPosition myPosition) {
-        throw new RuntimeException("Not implemented");
+        int row, col;
+        row = myPosition.getRow();
+        col = myPosition.getColumn();
+        Collection<ChessMove> moves = new ArrayList<>();
+        switch (type) {
+            case KING:
+                if (row - 1 >= 0 && col - 1 >= 0)
+                    moves.add(new ChessMove(myPosition, new ChessPosition(row - 1, col - 1), PieceType.KING));
+                if (row - 1 >= 0)
+                    moves.add(new ChessMove(myPosition, new ChessPosition(row - 1, col), PieceType.KING));
+                if (row - 1 >= 0 && col + 1 <= 7)
+                    moves.add(new ChessMove(myPosition, new ChessPosition(row - 1, col + 1), PieceType.KING));
+                if (col - 1 >= 0)
+                    moves.add(new ChessMove(myPosition, new ChessPosition(row, col - 1), PieceType.KING));
+                if (col + 1 <= 7)
+                    moves.add(new ChessMove(myPosition, new ChessPosition(row, col + 1), PieceType.KING));
+                if (row + 1 <= 7 && col - 1 >= 0)
+                    moves.add(new ChessMove(myPosition, new ChessPosition(row + 1, col - 1), PieceType.KING));
+                if (row + 1 <= 7)
+                    moves.add(new ChessMove(myPosition, new ChessPosition(row + 1,  col), PieceType.KING));
+                if (row + 1 <= 7 && col + 1 <= 7)
+                    moves.add(new ChessMove(myPosition, new ChessPosition(row + 1, col + 1), PieceType.KING));
+                break;
+            case QUEEN:
+
+                break;
+            case PAWN:
+                break;
+            case ROOK:
+                break;
+            case KNIGHT:
+                break;
+            case BISHOP:
+                break;
+            default:
+                return null;
+        }
     }
 }
