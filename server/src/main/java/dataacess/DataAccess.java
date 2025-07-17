@@ -2,6 +2,7 @@ package dataacess;
 
 import model.AuthData;
 import model.GameData;
+import model.GamesData;
 import model.UserData;
 
 import java.util.HashMap;
@@ -30,29 +31,19 @@ public class DataAccess {
     }
 
     public void addAuthData(AuthData authData) {
-        authDataMap.put(authData.username(), authData);
+        authDataMap.put(authData.authToken(), authData);
     }
 
-    public AuthData getAuthDataByUsername(String username) {
-        return authDataMap.get(username);
-    }
-
-    // This is kinda stupid but it works
     public AuthData getAuthDataByAuthToken(String authToken) {
-        return authDataMap.values().stream().filter(authData -> authData.authToken().equals(authToken)).findFirst().orElse(null);
+        return authDataMap.get(authToken);
     }
 
-    // This is kinda stupid but it works
     public boolean authDataExistsByAuthToken(String authToken) {
-        return authDataMap.values().stream().anyMatch(authData -> authData.authToken().equals(authToken));
+        return authDataMap.containsKey(authToken);
     }
 
-    public boolean authDataExistsByUsername(String username) {
-        return authDataMap.containsKey(username);
-    }
-
-    public void removeAuthData(String username) {
-        authDataMap.remove(username);
+    public void removeAuthData(String authToken) {
+        authDataMap.remove(authToken);
     }
 
     public void addGameData(GameData gameData) {
@@ -67,6 +58,11 @@ public class DataAccess {
         return gameDataHashMap.containsKey(gameId);
     }
 
+    public boolean gameDataExistsByGameName(String gameName) {
+        return gameDataHashMap.values().stream().anyMatch(gameData -> gameData.gameName().equals(gameName));
+    }
+
+
     public void removeGameData(Integer gameId) {
         gameDataHashMap.remove(gameId);
     }
@@ -77,7 +73,11 @@ public class DataAccess {
         gameDataHashMap.clear();
     }
 
-    public GameData[] getAllGames() {
-        return gameDataHashMap.values().toArray(new GameData[0]);
+    public GamesData getAllGames() {
+        return new GamesData(gameDataHashMap.values().toArray(new GameData[0]));
+    }
+
+    public Integer numGames() {
+        return gameDataHashMap.size();
     }
 }
