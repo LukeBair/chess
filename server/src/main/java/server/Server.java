@@ -9,7 +9,7 @@ public class Server {
         Spark.port(desiredPort);
 
         Spark.staticFiles.location("web");
-        Spark.get("/", (req, res) -> {)
+        Spark.get("/", (req, res) -> {
             res.redirect("/index.html");
             return null; // Spark requires a return value, but we redirect
         });
@@ -35,9 +35,6 @@ public class Server {
         Spark.post("/game", gameService::createGame);
         Spark.get("/game", gameService::getAllGames);
         Spark.post("/game", gameService::joinGame);
-
-
-
 
         //This line initializes the server and can be removed once you have a functioning endpoint
         Spark.init();

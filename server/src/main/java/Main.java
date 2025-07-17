@@ -8,6 +8,6 @@ public class Main {
 
         var server = new Server();
         var x = server.run(8080);
-        System.out.println("♕ 240 Chess Server is running on port " + x);
+        System.out.println("localhost:" + x);
     }
 }
