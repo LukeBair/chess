@@ -7,12 +7,23 @@ import model.UserData;
 import spark.Request;
 import spark.Response;
 
+import java.util.UUID;
+
 public class UserService {
     private final Gson serializer = new Gson();
 
     public String createUser(Request req, Response res) {
         try {
-            var userData = new UserData("", "", "");
+            var input = serializer.fromJson(req.body(), UserData.class);
+
+            if (!input.isValid()) {
+                res.status(400);
+                return serializer.toJson(new ErrorModel("Error: bad request"));
+            }
+
+            //TODO: email validation ???
+
+            var userData = new UserData(input.username(), input.password(), input.email());
 
             res.status(200);
             return serializer.toJson(userData);
@@ -24,7 +35,14 @@ public class UserService {
 
     public String login(Request req, Response res) {
         try {
-            var authData = new AuthData("", "");
+            var input = serializer.fromJson(req.body(), UserData.class);
+
+            if(!input.isValid()) {
+                res.status(401);
+                return serializer.toJson(new ErrorModel("Error: unauthorized"));
+            }
+
+            var authData = new AuthData(input.username(), generateToken());
 
             res.status(200);
             return serializer.toJson(authData);
@@ -42,5 +60,9 @@ public class UserService {
             res.status(500);
             return serializer.toJson(new ErrorModel("Error: " + e.getMessage()));
         }
+    }
+
+    public static String generateToken() {
+        return UUID.randomUUID().toString();
     }
 }

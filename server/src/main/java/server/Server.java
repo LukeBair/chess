@@ -27,14 +27,14 @@ public class Server {
         });
 
         UserService userService = new UserService();
-        Spark.post("/user", userService::login);
-        Spark.get("/user", userService::createUser);
-        Spark.delete("/user", userService::logout);
+        Spark.post("/session", userService::login);
+        Spark.post("/user", userService::createUser);
+        Spark.delete("/session", userService::logout);
 
         GameService gameService = new GameService();
         Spark.post("/game", gameService::createGame);
         Spark.get("/game", gameService::getAllGames);
-        Spark.post("/game", gameService::joinGame);
+        Spark.put("/game", gameService::joinGame);
 
         //This line initializes the server and can be removed once you have a functioning endpoint
         Spark.init();
