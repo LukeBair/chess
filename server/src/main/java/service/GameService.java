@@ -5,8 +5,6 @@ import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import dataacess.DataAccess;
 import model.*;
-import spark.Request;
-import spark.Response;
 
 public class GameService {
     Gson serializer = new Gson();
