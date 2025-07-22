@@ -16,6 +16,7 @@ public class DataAccess {
 
     public void addUser(UserData userData) {
         userDataMap.put(userData.username(), userData);
+        DatabaseManager.addUser(userData);
     }
 
     public UserData getUser(String username) {

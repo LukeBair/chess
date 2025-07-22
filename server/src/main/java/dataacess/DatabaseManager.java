@@ -1,5 +1,7 @@
 package dataacess;
 
+import model.UserData;
+
 import java.sql.*;
 import java.util.Properties;
 
@@ -14,6 +16,45 @@ public class DatabaseManager {
      */
     static {
         loadPropertiesFromResources();
+        try {
+            createDatabase();
+        } catch (DataAccessException e) {
+            System.err.println("Error in creating database.");
+            e.printStackTrace();
+        }
+
+        createTables();
+    }
+
+    private static void createTables() {
+        try (var conn = DatabaseManager.getConnection()) {
+            try (var statement = conn.createStatement()) {
+                final String userTable = "CREATE TABLE IF NOT EXISTS users (" +
+                        "username VARCHAR(255) NOT NULL UNIQUE, " +
+                        "password VARCHAR(255) NOT NULL, " +
+                        "email VARCHAR(255) NOT NULL" +
+                        ")";
+
+                final String authDataTable = "CREATE TABLE IF NOT EXISTS auth_data (" +
+                        "username VARCHAR(255) NOT NULL, " +
+                        "auth_token VARCHAR(255) NOT NULL UNIQUE, " +
+                        ")";
+
+                final String gameDataTable = "CREATE TABLE IF NOT EXISTS game_data (" +
+                        "game_id INT NOT NULL AUTO_INCREMENT, " +
+                        "white_username VARCHAR(255), " +
+                        "black_username VARCHAR(255), " +
+                        "game_name VARCHAR(255) NOT NULL, " +
+                        "game VARCHAR(255)" +
+                        ")";
+
+                statement.executeUpdate(userTable);
+                statement.executeUpdate(authDataTable);
+                statement.executeUpdate(gameDataTable);
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to create users table: " + e.getMessage(), e);
+        }
     }
 
     /**
@@ -73,5 +114,16 @@ public class DatabaseManager {
         var host = props.getProperty("db.host");
         var port = Integer.parseInt(props.getProperty("db.port"));
         connectionUrl = String.format("jdbc:mysql://%s:%d", host, port);
+    }
+
+    public static void addUser(UserData userData) {
+        try {
+            Connection conn = getConnection();
+
+
+        } catch (DataAccessException e) {
+            System.err.println("Error in creating database.");
+            e.printStackTrace();
+        }
     }
 }
