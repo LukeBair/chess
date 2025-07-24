@@ -5,11 +5,6 @@ import dataacess.DataAccess;
 import model.AuthData;
 import model.ErrorModel;
 import model.UserData;
-import org.eclipse.jetty.util.log.Log;
-import spark.Request;
-import spark.Response;
-
-import javax.xml.crypto.Data;
 import java.util.UUID;
 
 public class UserService {
