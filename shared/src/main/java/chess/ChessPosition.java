@@ -5,10 +5,18 @@ package chess;
  * <p>
  * Note: You can add to this class, but you may not alter
  * signature of the existing methods.
+ * this will be 1-8
  */
 public class ChessPosition {
+    private int row, col;
 
     public ChessPosition(int row, int col) {
+        if (row < 0 || col < 0 || row > 8 || col > 8) {
+            throw new IllegalArgumentException("Row and column must be between 1 and 8");
+        }
+
+        this.row = row;
+        this.col = col;
     }
 
     /**
@@ -16,7 +24,7 @@ public class ChessPosition {
      * 1 codes for the bottom row
      */
     public int getRow() {
-        throw new RuntimeException("Not implemented");
+        return row;
     }
 
     /**
@@ -24,6 +32,6 @@ public class ChessPosition {
      * 1 codes for the left row
      */
     public int getColumn() {
-        throw new RuntimeException("Not implemented");
+        return col;
     }
 }

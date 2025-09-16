@@ -5,8 +5,10 @@ package chess;
  * <p>
  * Note: You can add to this class, but you may not alter
  * signature of the existing methods.
+ * this class will use 0-7 for rows and columns (it will need to translate from 1-8)
  */
 public class ChessBoard {
+    ChessPiece[][] board = new ChessPiece[8][8];
 
     public ChessBoard() {
         
