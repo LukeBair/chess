@@ -85,7 +85,36 @@ public class ChessPiece {
     }
 
     private Collection<ChessMove> kingMoves(ChessBoard board, ChessPosition myPosition) {
-        return null;
+        int[] moveOffsets = {-1, 0, 1};
+        ArrayList<ChessMove> moves = new ArrayList<>();
+
+        for (int rowOffset : moveOffsets) {
+            for (int colOffset : moveOffsets) {
+                int newRow = myPosition.getRow() + rowOffset;
+                int newCol = myPosition.getColumn() + colOffset;
+
+                if (newRow < 1 || newRow > 8 || newCol < 1 || newCol > 8) {
+                    continue;
+                }
+                else if (rowOffset == 0 && colOffset == 0) {
+                    continue;
+                }
+
+
+                ChessPosition newPosition = new ChessPosition(newRow, newCol);
+                ChessPiece pieceAtNewPosition = board.getPiece(newPosition);
+
+                if (pieceAtNewPosition != null) {
+                    if (pieceAtNewPosition.getTeamColor() != this.teamColor) {
+                        moves.add(new ChessMove(myPosition, newPosition, null));
+                    }
+                } else {
+                    moves.add(new ChessMove(myPosition, newPosition, null));
+                }
+            }
+        }
+
+        return moves;
     }
 
     private Collection<ChessMove> queenMoves(ChessBoard board, ChessPosition myPosition) {
@@ -102,15 +131,51 @@ public class ChessPiece {
     }
 
     private Collection<ChessMove> bishopMoves(ChessBoard board, ChessPosition myPosition) {
-        return null;
+        var moves = linearMoves(board, myPosition, 1, 1);
+        moves.addAll(linearMoves(board, myPosition, -1, 1));
+        moves.addAll(linearMoves(board, myPosition, 1, -1));
+        moves.addAll(linearMoves(board, myPosition, -1, -1));
+
+        return moves;
     }
 
     private Collection<ChessMove> knightMoves(ChessBoard board, ChessPosition myPosition) {
-        return null;
+        int[][] moveOffsets = {
+                {1, 2}, {1, -2}, {-1, 2}, {-1, -2},
+                {2, 1}, {2, -1}, {-2, 1}, {-2, -1}};
+
+        ArrayList<ChessMove> moves = new ArrayList<>();
+
+        for (int[] offset : moveOffsets) {
+            int newRow = myPosition.getRow() + offset[0];
+            int newCol = myPosition.getColumn() + offset[1];
+
+            if (newRow < 1 || newRow > 8 || newCol < 1 || newCol > 8) {
+                continue;
+            }
+
+            ChessPosition newPosition = new ChessPosition(newRow, newCol);
+            ChessPiece pieceAtNewPosition = board.getPiece(newPosition);
+
+            if (pieceAtNewPosition != null) {
+                if (pieceAtNewPosition.getTeamColor() != this.teamColor) {
+                    moves.add(new ChessMove(myPosition, newPosition, null));
+                }
+            } else {
+                moves.add(new ChessMove(myPosition, newPosition, null));
+            }
+        }
+
+        return moves;
     }
 
     private Collection<ChessMove> rookMoves(ChessBoard board, ChessPosition myPosition) {
-        return null;
+        var moves = linearMoves(board, myPosition, 1, 0);
+        moves.addAll(linearMoves(board, myPosition, -1, 0));
+        moves.addAll(linearMoves(board, myPosition, 0, 1));
+        moves.addAll(linearMoves(board, myPosition, 0, -1));
+
+        return moves;
     }
 
     private Collection<ChessMove> pawnMoves(ChessBoard board, ChessPosition myPosition) {
@@ -135,6 +200,9 @@ public class ChessPiece {
                 }
                 break;
             }
+
+            newRow += rowIncrement;
+            newCol += colIncrement;
         }
 
         return moves;
