@@ -1,5 +1,6 @@
 package chess;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Objects;
 
@@ -84,20 +85,59 @@ public class ChessPiece {
     }
 
     private Collection<ChessMove> kingMoves(ChessBoard board, ChessPosition myPosition) {
+        return null;
     }
 
     private Collection<ChessMove> queenMoves(ChessBoard board, ChessPosition myPosition) {
+        var moves = linearMoves(board, myPosition, 1, 0);
+        moves.addAll(linearMoves(board, myPosition, -1, 0));
+        moves.addAll(linearMoves(board, myPosition, 0, 1));
+        moves.addAll(linearMoves(board, myPosition, 0, -1));
+        moves.addAll(linearMoves(board, myPosition, 1, 1));
+        moves.addAll(linearMoves(board, myPosition, 1, -1));
+        moves.addAll(linearMoves(board, myPosition, -1, 1));
+        moves.addAll(linearMoves(board, myPosition, -1, -1));
+
+        return moves;
     }
 
     private Collection<ChessMove> bishopMoves(ChessBoard board, ChessPosition myPosition) {
+        return null;
     }
 
     private Collection<ChessMove> knightMoves(ChessBoard board, ChessPosition myPosition) {
+        return null;
     }
 
     private Collection<ChessMove> rookMoves(ChessBoard board, ChessPosition myPosition) {
+        return null;
     }
 
     private Collection<ChessMove> pawnMoves(ChessBoard board, ChessPosition myPosition) {
+        return null;
     }
+
+    private Collection<ChessMove> linearMoves(ChessBoard board, ChessPosition myPosition, int rowIncrement, int colIncrement) {
+        ArrayList<ChessMove> moves = new ArrayList<>();
+        int row = myPosition.getRow();
+        int col = myPosition.getColumn();
+        int newRow = row + rowIncrement;
+        int newCol = col + colIncrement;
+
+        while (newRow >= 1 && newRow <= 8 && newCol >= 1 && newCol <= 8) {
+            ChessPosition position = new ChessPosition(newRow, newCol);
+            ChessPiece pieceAtPosition = board.getPiece(position);
+            if (pieceAtPosition == null) {
+                moves.add(new ChessMove(myPosition, position, null));
+            } else {
+                if (pieceAtPosition.getTeamColor() != this.teamColor) {
+                    moves.add(new ChessMove(myPosition, position, null));
+                }
+                break;
+            }
+        }
+
+        return moves;
+    }
+
 }
