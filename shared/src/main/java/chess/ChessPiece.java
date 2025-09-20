@@ -66,22 +66,15 @@ public class ChessPiece {
      * @return Collection of valid moves
      */
     public Collection<ChessMove> pieceMoves(ChessBoard board, ChessPosition myPosition) {
-        switch (pieceType) {
-            case KING:
-                return kingMoves(board, myPosition);
-            case QUEEN:
-                return queenMoves(board, myPosition);
-            case BISHOP:
-                return bishopMoves(board, myPosition);
-            case KNIGHT:
-                return knightMoves(board, myPosition);
-            case ROOK:
-                return rookMoves(board, myPosition);
-            case PAWN:
-                return pawnMoves(board, myPosition);
-            default:
-                throw new RuntimeException("Unknown piece type: " + pieceType);
-        }
+        return switch (pieceType) {
+            case KING -> kingMoves(board, myPosition);
+            case QUEEN -> queenMoves(board, myPosition);
+            case BISHOP -> bishopMoves(board, myPosition);
+            case KNIGHT -> knightMoves(board, myPosition);
+            case ROOK -> rookMoves(board, myPosition);
+            case PAWN -> pawnMoves(board, myPosition);
+            default -> throw new RuntimeException("Unknown piece type: " + pieceType);
+        };
     }
 
     private Collection<ChessMove> kingMoves(ChessBoard board, ChessPosition myPosition) {
