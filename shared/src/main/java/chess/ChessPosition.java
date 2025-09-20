@@ -10,7 +10,8 @@ import java.util.Objects;
  * this will be 1-8
  */
 public class ChessPosition {
-    private int row, col;
+    private final int row;
+    private final int col;
 
     public ChessPosition(int row, int col) {
         if (row < 0 || col < 0 || row > 8 || col > 8) {
