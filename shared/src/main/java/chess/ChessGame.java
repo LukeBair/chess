@@ -1,5 +1,6 @@
 package chess;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Objects;
 
@@ -13,8 +14,14 @@ public class ChessGame {
     private TeamColor currentTeam;
     private ChessBoard chessBoard;
 
-    public ChessGame() {
+    private ArrayList<ChessPosition> blackPiecesPositions = new ArrayList<>();
+    private ArrayList<ChessPosition> whitePiecesPositions = new ArrayList<>();
 
+    public ChessGame() {
+        for (int i = 1; i <= 8; i++) {
+            whitePiecesPositions.add(new ChessPosition(1, i));
+            blackPiecesPositions.add(new ChessPosition(8, i));
+        }
     }
 
     /**
@@ -59,7 +66,7 @@ public class ChessGame {
      * @throws InvalidMoveException if move is invalid
      */
     public void makeMove(ChessMove move) throws InvalidMoveException {
-        throw new RuntimeException("Not implemented");
+        //... logic
     }
 
     /**
@@ -69,7 +76,18 @@ public class ChessGame {
      * @return True if the specified team is in check
      */
     public boolean isInCheck(TeamColor teamColor) {
-        throw new RuntimeException("Not implemented");
+        var enemyPieces = teamColor == TeamColor.WHITE ? blackPiecesPositions : whitePiecesPositions;
+
+        var enemyPieceMoves = new ArrayList<ChessMove>();
+        enemyPieces.forEach((x) -> enemyPieceMoves.addAll(validMoves(x)));
+
+        for (var move : enemyPieceMoves) {
+            if (chessBoard.getPiece(move.getEndPosition()) != null && chessBoard.getPiece(move.getEndPosition()).getPieceType() == ChessPiece.PieceType.KING) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
