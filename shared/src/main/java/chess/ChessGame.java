@@ -55,8 +55,34 @@ public class ChessGame {
      * @return Set of valid moves for requested piece, or null if no piece at
      * startPosition
      */
+    // Public method - uses the current board
     public Collection<ChessMove> validMoves(ChessPosition startPosition) {
-        throw new RuntimeException("Not implemented");
+        return validMoves(this.chessBoard, startPosition);
+    }
+
+    // Private helper - works on any board
+    private Collection<ChessMove> validMoves(ChessBoard board, ChessPosition position) {
+        ChessPiece piece = board.getPiece(position);
+        if (piece == null) {
+            return new ArrayList<>();
+        }
+
+        Collection<ChessMove> possibleMoves = piece.pieceMoves(board, position);
+        Collection<ChessMove> legalMoves = new ArrayList<>();
+
+        for (ChessMove move : possibleMoves) {
+            ChessBoard boardCopy = board.deepCopy();
+
+            ChessPiece movingPiece = boardCopy.getPiece(move.getStartPosition());
+            boardCopy.addPiece(move.getEndPosition(), movingPiece);
+            boardCopy.addPiece(move.getStartPosition(), null);
+
+            if (!isInCheckOnBoard(boardCopy, piece.getTeamColor())) {
+                legalMoves.add(move);
+            }
+        }
+
+        return legalMoves;
     }
 
     /**
@@ -69,27 +95,52 @@ public class ChessGame {
         //... logic
     }
 
-    /**
-     * Determines if the given team is in check
-     *
-     * @param teamColor which team to check for check
-     * @return True if the specified team is in check
-     */
     public boolean isInCheck(TeamColor teamColor) {
-        var enemyPieces = teamColor == TeamColor.WHITE ? blackPiecesPositions : whitePiecesPositions;
+        return isInCheckOnBoard(this.chessBoard, teamColor);
+    }
 
-        var enemyPieceMoves = new ArrayList<ChessMove>();
-        enemyPieces.forEach((x) -> enemyPieceMoves.addAll(validMoves(x)));
+    private boolean isInCheckOnBoard(ChessBoard board, TeamColor teamColor) {
+        // Find the king position
+        ChessPosition kingPosition = null;
+        for (int row = 1; row <= 8; row++) {
+            for (int col = 1; col <= 8; col++) {
+                ChessPosition pos = new ChessPosition(row, col);
+                ChessPiece piece = board.getPiece(pos);
+                if (piece != null &&
+                        piece.getTeamColor() == teamColor &&
+                        piece.getPieceType() == ChessPiece.PieceType.KING) {
+                    kingPosition = pos;
+                    break;
+                }
+            }
+            if (kingPosition != null) break;
+        }
 
-        for (var move : enemyPieceMoves) {
-            if (chessBoard.getPiece(move.getEndPosition()) != null && chessBoard.getPiece(move.getEndPosition()).getPieceType() == ChessPiece.PieceType.KING) {
-                return true;
+        if (kingPosition == null) {
+            return false; // No king found
+        }
+
+        // Check if any enemy piece can attack the king
+        for (int row = 1; row <= 8; row++) {
+            for (int col = 1; col <= 8; col++) {
+                ChessPosition pos = new ChessPosition(row, col);
+                ChessPiece piece = board.getPiece(pos);
+
+                if (piece != null && piece.getTeamColor() != teamColor) {
+                    // Get RAW moves (not filtered by check) for enemy pieces
+                    Collection<ChessMove> enemyMoves = piece.pieceMoves(board, pos);
+
+                    for (ChessMove move : enemyMoves) {
+                        if (move.getEndPosition().equals(kingPosition)) {
+                            return true;
+                        }
+                    }
+                }
             }
         }
 
         return false;
     }
-
     /**
      * Determines if the given team is in checkmate
      *
@@ -97,8 +148,27 @@ public class ChessGame {
      * @return True if the specified team is in checkmate
      */
     public boolean isInCheckmate(TeamColor teamColor) {
-        throw new RuntimeException("Not implemented");
+        // First, check if the king is even in check
+        if (!isInCheck(teamColor)) {
+            return false;
+        }
+
+        // If in check, see if there are ANY valid moves that get out of check
+        var friendlyPieces = teamColor == TeamColor.WHITE ? whitePiecesPositions : blackPiecesPositions;
+
+        for (ChessPosition position : friendlyPieces) {
+            Collection<ChessMove> moves = validMoves(position);
+
+            // If any piece has any valid move, not checkmate
+            if (!moves.isEmpty()) {
+                return false;
+            }
+        }
+
+        // In check with no valid moves = checkmate
+        return true;
     }
+
 
     /**
      * Determines if the given team is in stalemate, which here is defined as having

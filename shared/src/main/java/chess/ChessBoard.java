@@ -91,4 +91,12 @@ public class ChessBoard {
     public int hashCode() {
         return Arrays.deepHashCode(board);
     }
+
+    public ChessBoard deepCopy() {
+        ChessBoard copy = new ChessBoard();
+        for (int row = 0; row < 8; row++) {
+            System.arraycopy(this.board[row], 0, copy.board[row], 0, 8);
+        }
+        return copy;
+    }
 }
