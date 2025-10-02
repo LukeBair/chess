@@ -22,6 +22,9 @@ public class ChessGame {
             whitePiecesPositions.add(new ChessPosition(1, i));
             blackPiecesPositions.add(new ChessPosition(8, i));
         }
+
+        chessBoard = new ChessBoard();
+        chessBoard.resetBoard();
     }
 
     /**
@@ -92,8 +95,15 @@ public class ChessGame {
      * @throws InvalidMoveException if move is invalid
      */
     public void makeMove(ChessMove move) throws InvalidMoveException {
-        if (move.getEndPosition() == null || move.getStartPosition() == null) {
-            throw new InvalidMoveException("Start or end position is null");
+        // Missing: Check if piece belongs to currentTeam
+        ChessPiece pieceToMove = chessBoard.getPiece(move.getStartPosition());
+
+        // Should add:
+        if (pieceToMove == null) {
+            throw new InvalidMoveException("No piece at start position");
+        }
+        if (pieceToMove.getTeamColor() != currentTeam) {
+            throw new InvalidMoveException("Not your piece to move");
         }
 
         Collection<ChessMove> validMoves = validMoves(move.getStartPosition());
@@ -101,7 +111,6 @@ public class ChessGame {
             throw new InvalidMoveException("Move is not valid");
         }
 
-        ChessPiece pieceToMove = chessBoard.getPiece(move.getStartPosition());
         chessBoard.addPiece(move.getEndPosition(), pieceToMove);
         chessBoard.addPiece(move.getStartPosition(), null);
 
@@ -176,19 +185,21 @@ public class ChessGame {
             return false;
         }
 
-        // If in check, see if there are ANY valid moves that get out of check
+
+        // In check with no valid moves = checkmate
+        return kingCanMove(teamColor);
+    }
+
+    private boolean kingCanMove(TeamColor teamColor) {
         var friendlyPieces = teamColor == TeamColor.WHITE ? whitePiecesPositions : blackPiecesPositions;
 
         for (ChessPosition position : friendlyPieces) {
             Collection<ChessMove> moves = validMoves(position);
 
-            // If any piece has any valid move, not checkmate
             if (!moves.isEmpty()) {
                 return false;
             }
         }
-
-        // In check with no valid moves = checkmate
         return true;
     }
 
@@ -201,7 +212,14 @@ public class ChessGame {
      * @return True if the specified team is in stalemate, otherwise false
      */
     public boolean isInStalemate(TeamColor teamColor) {
-        throw new RuntimeException("Not implemented");
+        // First, check if the king is even in check
+        if (isInCheck(teamColor)) {
+            return false;
+        }
+
+
+        // In check with no valid moves = checkmate
+        return kingCanMove(teamColor);
     }
 
     /**
@@ -211,6 +229,13 @@ public class ChessGame {
      */
     public void setBoard(ChessBoard board) {
         chessBoard = board;
+        whitePiecesPositions = new ArrayList<>();
+        blackPiecesPositions = new ArrayList<>();
+
+        for (int i = 1; i <= 8; i++) {
+            whitePiecesPositions.add(new ChessPosition(1, i));
+            blackPiecesPositions.add(new ChessPosition(8, i));
+        }
     }
 
     /**
