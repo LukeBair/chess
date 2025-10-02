@@ -92,7 +92,30 @@ public class ChessGame {
      * @throws InvalidMoveException if move is invalid
      */
     public void makeMove(ChessMove move) throws InvalidMoveException {
-        //... logic
+        if (move.getEndPosition() == null || move.getStartPosition() == null) {
+            throw new InvalidMoveException("Start or end position is null");
+        }
+
+        Collection<ChessMove> validMoves = validMoves(move.getStartPosition());
+        if (!validMoves.contains(move)) {
+            throw new InvalidMoveException("Move is not valid");
+        }
+
+        ChessPiece pieceToMove = chessBoard.getPiece(move.getStartPosition());
+        chessBoard.addPiece(move.getEndPosition(), pieceToMove);
+        chessBoard.addPiece(move.getStartPosition(), null);
+
+        // Update piece positions
+        if (pieceToMove.getTeamColor() == TeamColor.WHITE) {
+            whitePiecesPositions.remove(move.getStartPosition());
+            whitePiecesPositions.add(move.getEndPosition());
+        } else {
+            blackPiecesPositions.remove(move.getStartPosition());
+            blackPiecesPositions.add(move.getEndPosition());
+        }
+
+        // Switch turns
+        currentTeam = (currentTeam == TeamColor.WHITE) ? TeamColor.BLACK : TeamColor.WHITE;
     }
 
     public boolean isInCheck(TeamColor teamColor) {
