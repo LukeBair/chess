@@ -19,12 +19,18 @@ public class ChessGame {
 
     public ChessGame() {
         for (int i = 1; i <= 8; i++) {
+            whitePiecesPositions.add(new ChessPosition(2, i));
             whitePiecesPositions.add(new ChessPosition(1, i));
+        }
+        for (int i = 1; i <= 8; i++) {
+            blackPiecesPositions.add(new ChessPosition(7, i));
             blackPiecesPositions.add(new ChessPosition(8, i));
         }
 
         chessBoard = new ChessBoard();
         chessBoard.resetBoard();
+
+        currentTeam = TeamColor.WHITE;
     }
 
     /**
@@ -58,12 +64,10 @@ public class ChessGame {
      * @return Set of valid moves for requested piece, or null if no piece at
      * startPosition
      */
-    // Public method - uses the current board
     public Collection<ChessMove> validMoves(ChessPosition startPosition) {
         return validMoves(this.chessBoard, startPosition);
     }
 
-    // Private helper - works on any board
     private Collection<ChessMove> validMoves(ChessBoard board, ChessPosition position) {
         ChessPiece piece = board.getPiece(position);
         if (piece == null) {
@@ -95,10 +99,8 @@ public class ChessGame {
      * @throws InvalidMoveException if move is invalid
      */
     public void makeMove(ChessMove move) throws InvalidMoveException {
-        // Missing: Check if piece belongs to currentTeam
         ChessPiece pieceToMove = chessBoard.getPiece(move.getStartPosition());
 
-        // Should add:
         if (pieceToMove == null) {
             throw new InvalidMoveException("No piece at start position");
         }
@@ -111,19 +113,29 @@ public class ChessGame {
             throw new InvalidMoveException("Move is not valid");
         }
 
-        chessBoard.addPiece(move.getEndPosition(), pieceToMove);
-        chessBoard.addPiece(move.getStartPosition(), null);
+        ChessPiece capturedPiece = chessBoard.getPiece(move.getEndPosition());
 
-        // Update piece positions
+        ChessPiece finalPiece = move.getPromotionPiece() != null
+                ? new ChessPiece(pieceToMove.getTeamColor(), move.getPromotionPiece())
+                : pieceToMove;
+
+        chessBoard.addPiece(move.getEndPosition(), finalPiece);
+        chessBoard.addPiece(move.getStartPosition(), null);  // FIX: Remove piece from start
+
         if (pieceToMove.getTeamColor() == TeamColor.WHITE) {
             whitePiecesPositions.remove(move.getStartPosition());
             whitePiecesPositions.add(move.getEndPosition());
+            if (capturedPiece != null && capturedPiece.getTeamColor() == TeamColor.BLACK) {
+                blackPiecesPositions.remove(move.getEndPosition());
+            }
         } else {
             blackPiecesPositions.remove(move.getStartPosition());
             blackPiecesPositions.add(move.getEndPosition());
+            if (capturedPiece != null && capturedPiece.getTeamColor() == TeamColor.WHITE) {
+                whitePiecesPositions.remove(move.getEndPosition());
+            }
         }
 
-        // Switch turns
         currentTeam = (currentTeam == TeamColor.WHITE) ? TeamColor.BLACK : TeamColor.WHITE;
     }
 
@@ -132,7 +144,6 @@ public class ChessGame {
     }
 
     private boolean isInCheckOnBoard(ChessBoard board, TeamColor teamColor) {
-        // Find the king position
         ChessPosition kingPosition = null;
         for (int row = 1; row <= 8; row++) {
             for (int col = 1; col <= 8; col++) {
@@ -149,17 +160,15 @@ public class ChessGame {
         }
 
         if (kingPosition == null) {
-            return false; // No king found
+            return false;
         }
 
-        // Check if any enemy piece can attack the king
         for (int row = 1; row <= 8; row++) {
             for (int col = 1; col <= 8; col++) {
                 ChessPosition pos = new ChessPosition(row, col);
                 ChessPiece piece = board.getPiece(pos);
 
                 if (piece != null && piece.getTeamColor() != teamColor) {
-                    // Get RAW moves (not filtered by check) for enemy pieces
                     Collection<ChessMove> enemyMoves = piece.pieceMoves(board, pos);
 
                     for (ChessMove move : enemyMoves) {
@@ -180,17 +189,14 @@ public class ChessGame {
      * @return True if the specified team is in checkmate
      */
     public boolean isInCheckmate(TeamColor teamColor) {
-        // First, check if the king is even in check
         if (!isInCheck(teamColor)) {
             return false;
         }
 
-
-        // In check with no valid moves = checkmate
-        return kingCanMove(teamColor);
+        return hasNoValidMoves(teamColor);
     }
 
-    private boolean kingCanMove(TeamColor teamColor) {
+    private boolean hasNoValidMoves(TeamColor teamColor) {
         var friendlyPieces = teamColor == TeamColor.WHITE ? whitePiecesPositions : blackPiecesPositions;
 
         for (ChessPosition position : friendlyPieces) {
@@ -212,14 +218,11 @@ public class ChessGame {
      * @return True if the specified team is in stalemate, otherwise false
      */
     public boolean isInStalemate(TeamColor teamColor) {
-        // First, check if the king is even in check
         if (isInCheck(teamColor)) {
             return false;
         }
 
-
-        // In check with no valid moves = checkmate
-        return kingCanMove(teamColor);
+        return hasNoValidMoves(teamColor);
     }
 
     /**
@@ -232,9 +235,19 @@ public class ChessGame {
         whitePiecesPositions = new ArrayList<>();
         blackPiecesPositions = new ArrayList<>();
 
-        for (int i = 1; i <= 8; i++) {
-            whitePiecesPositions.add(new ChessPosition(1, i));
-            blackPiecesPositions.add(new ChessPosition(8, i));
+        for (int row = 1; row <= 8; row++) {
+            for (int col = 1; col <= 8; col++) {
+                ChessPosition pos = new ChessPosition(row, col);
+                ChessPiece piece = chessBoard.getPiece(pos);
+
+                if (piece != null) {
+                    if (piece.getTeamColor() == TeamColor.WHITE) {
+                        whitePiecesPositions.add(pos);
+                    } else {
+                        blackPiecesPositions.add(pos);
+                    }
+                }
+            }
         }
     }
 
