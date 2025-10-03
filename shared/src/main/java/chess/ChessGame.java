@@ -139,6 +139,7 @@ public class ChessGame {
         currentTeam = (currentTeam == TeamColor.WHITE) ? TeamColor.BLACK : TeamColor.WHITE;
     }
 
+
     public boolean isInCheck(TeamColor teamColor) {
         return isInCheckOnBoard(this.chessBoard, teamColor);
     }
