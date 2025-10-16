@@ -1,4 +1,4 @@
-package chess.dataaccess;
+package dataaccess;
 
 /**
  * Indicates there was an error connecting to the database
