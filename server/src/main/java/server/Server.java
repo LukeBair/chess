@@ -1,6 +1,5 @@
 package server;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import dataaccess.DataAccess;
 import dataaccess.DataAccessException;
 import dataaccess.MemoryDataAccess;
@@ -11,6 +10,8 @@ import model.GameData;
 import model.UserData;
 import org.jetbrains.annotations.NotNull;
 import org.mindrot.jbcrypt.BCrypt;
+import server.Req_Res.*;
+
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -162,11 +163,10 @@ public class Server {
             }
 
             int gameID = UUID.randomUUID().hashCode();
-            String username = authData.username();
             GameData game = new GameData(
                     gameID,
-                    username,  // whiteUsername
-                    null,      // blackUsername
+                    null,
+                    null,
                     request.gameName(),
                     new chess.ChessGame()
             );
