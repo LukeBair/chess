@@ -7,10 +7,11 @@ import dataaccess.MemoryDataAccess;
 import io.javalin.*;
 import io.javalin.http.Context;
 import model.AuthData;
+import model.GameData;
 import model.UserData;
 import org.jetbrains.annotations.NotNull;
 import org.mindrot.jbcrypt.BCrypt;
-
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -48,15 +49,173 @@ public class Server {
     }
 
     private void joinGame(@NotNull Context context) {
-        // TODO: Implement later
+        try {
+            String authToken = context.header("Authorization");
+
+            if (authToken == null) {
+                context.status(401);
+                context.json(Map.of("message", "Error: unauthorized"));
+                return;
+            }
+
+            AuthData authData = dataAccess.getAuth(authToken);
+
+            if (authData == null) {
+                context.status(401);
+                context.json(Map.of("message", "Error: unauthorized"));
+                return;
+            }
+
+            JoinGameRequest request = context.bodyAsClass(JoinGameRequest.class);
+            if (request.gameID() == null) {
+                context.status(400);
+                context.json(Map.of("message", "Error: bad request"));
+                return;
+            }
+
+            GameData game = dataAccess.getGame(request.gameID());
+            if (game == null) {
+                context.status(400);
+                context.json(Map.of("message", "Error: bad request"));
+                return;
+            }
+
+            if (request.playerColor() != null) {
+                if (!request.playerColor().equalsIgnoreCase("WHITE") &&
+                        !request.playerColor().equalsIgnoreCase("BLACK")) {
+                    context.status(400);
+                    context.json(Map.of("message", "Error: bad request"));
+                    return;
+                }
+
+                String username = authData.username();
+
+                if (request.playerColor().equalsIgnoreCase("WHITE")) {
+                    if (game.whiteUsername() != null) {
+                        context.status(403);
+                        context.json(Map.of("message", "Error: already taken"));
+                        return;
+                    }
+
+                    GameData updatedGame = new GameData(
+                            game.gameID(),
+                            username,  // whiteUsername
+                            game.blackUsername(),
+                            game.gameName(),
+                            game.game()
+                    );
+                    dataAccess.updateGame(updatedGame);
+
+                } else { // BLACK
+                    if (game.blackUsername() != null) {
+                        context.status(403);
+                        context.json(Map.of("message", "Error: already taken"));
+                        return;
+                    }
+
+                    GameData updatedGame = new GameData(
+                            game.gameID(),
+                            game.whiteUsername(),
+                            username,  // blackUsername
+                            game.gameName(),
+                            game.game()
+                    );
+                    dataAccess.updateGame(updatedGame);
+                }
+            }
+
+            context.status(200);
+            context.json(Map.of());
+
+        } catch (DataAccessException e) {
+            context.status(500);
+            context.json(Map.of("message", "Error: " + e.getMessage()));
+        } catch (Exception e) {
+            context.status(400);
+            context.json(Map.of("message", "Error: bad request"));
+        }
     }
 
     private void createGame(@NotNull Context context) {
-        // TODO: Implement later
+        try {
+            String authToken = context.header("Authorization");
+
+            if (authToken == null) {
+                context.status(401);
+                context.json(Map.of("message", "Error: unauthorized"));
+                return;
+            }
+
+            AuthData authData = dataAccess.getAuth(authToken);
+
+            if (authData == null) {
+                context.status(401);
+                context.json(Map.of("message", "Error: unauthorized"));
+                return;
+            }
+
+            CreateGameRequest request = context.bodyAsClass(CreateGameRequest.class);
+            if (request.gameName() == null) {
+                context.status(400);
+                context.json(Map.of("message", "Error: bad request"));
+                return;
+            }
+
+            int gameID = UUID.randomUUID().hashCode();
+            String username = authData.username();
+            GameData game = new GameData(
+                    gameID,
+                    username,  // whiteUsername
+                    null,      // blackUsername
+                    request.gameName(),
+                    new chess.ChessGame()
+            );
+            dataAccess.createGame(game);
+
+            context.status(200);
+            context.json(new CreateGameResponse(gameID));
+
+        } catch (DataAccessException e) {
+            context.status(500);
+            context.json(Map.of("message", "Error: " + e.getMessage()));
+        } catch (Exception e) {
+            context.status(400);
+            context.json(Map.of("message", "Error: bad request"));
+        }
     }
 
     private void listGames(@NotNull Context context) {
-        // TODO: Implement later
+        try {
+            String authToken = context.header("Authorization");
+
+            if (authToken == null) {
+                context.status(401);
+                context.json(Map.of("message", "Error: unauthorized"));
+                return;
+            }
+
+            AuthData authData = dataAccess.getAuth(authToken);
+
+            if (authData == null) {
+                context.status(401);
+                context.json(Map.of("message", "Error: unauthorized"));
+                return;
+            }
+
+            List<GameData> games = dataAccess.listGames();
+
+            // Convert to simplified list entries
+            List<GameListEntry> gameList = games.stream()
+                    .map(g -> new GameListEntry(g.gameID(), g.whiteUsername(), g.blackUsername(), g.gameName()))
+                    .toList();
+
+            context.status(200);
+            context.json(new ListGamesResponse(gameList));
+
+        } catch (DataAccessException e) {
+            context.status(500);
+            context.json(Map.of("message", "Error: " + e.getMessage()));
+        }
     }
 
     private void logout(@NotNull Context context) {
