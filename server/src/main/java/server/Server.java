@@ -60,7 +60,32 @@ public class Server {
     }
 
     private void logout(@NotNull Context context) {
-        // TODO: Implement later
+        try {
+            String authToken = context.header("Authorization");
+
+            if (authToken == null) {
+                context.status(400);
+                context.json(Map.of("message", "Error: bad request"));
+                return;
+            }
+
+            AuthData authData = dataAccess.getAuth(authToken);
+
+            if (authData == null) {
+                context.status(401);
+                context.json(Map.of("message", "Error: unauthorized"));
+                return;
+            }
+
+            dataAccess.deleteAuth(authToken);
+
+            context.status(200);
+            context.json(Map.of());
+
+        } catch (DataAccessException e) {
+            context.status(500);
+            context.json(Map.of("message", "Error: " + e.getMessage()));
+        }
     }
 
     private void login(@NotNull Context context) {
