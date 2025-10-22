@@ -107,7 +107,7 @@ public class Server {
                     );
                     dataAccess.updateGame(updatedGame);
 
-                } else { // BLACK
+                } else if (request.playerColor().equalsIgnoreCase("BLACK")) { // BLACK
                     if (game.blackUsername() != null) {
                         context.status(403);
                         context.json(Map.of("message", "Error: already taken"));
@@ -122,12 +122,17 @@ public class Server {
                             game.game()
                     );
                     dataAccess.updateGame(updatedGame);
+                } else {
+                    context.status(400);
+                    context.json(Map.of("message", "Error: bad request"));
+                    return;
                 }
             }
-
-            context.status(200);
-            context.json(Map.of());
-
+            else {
+                context.status(400);
+                context.json(Map.of("message", "Error: bad request"));
+                return;
+            }
         } catch (DataAccessException e) {
             context.status(500);
             context.json(Map.of("message", "Error: " + e.getMessage()));
@@ -162,7 +167,7 @@ public class Server {
                 return;
             }
 
-            int gameID = UUID.randomUUID().hashCode();
+            int gameID = Math.abs(UUID.randomUUID().hashCode());
             GameData game = new GameData(
                     gameID,
                     null,
