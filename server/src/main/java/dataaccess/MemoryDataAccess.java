@@ -43,7 +43,7 @@ public class MemoryDataAccess implements DataAccess {
 
     @Override
     public List<GameData> listGames() throws DataAccessException {
-        return List.of();
+        return games.values().stream().toList();
     }
 
     @Override
