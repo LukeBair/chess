@@ -66,7 +66,10 @@ public class MemoryDataAccess implements DataAccess {
 
     @Override
     public void deleteAuth(String authToken) throws DataAccessException {
-
+        if (!auths.containsKey(authToken)) {
+            throw new DataAccessException("Auth token does not exist");
+        }
+        auths.remove(authToken);
     }
     // Implement other methods similarly
 }
