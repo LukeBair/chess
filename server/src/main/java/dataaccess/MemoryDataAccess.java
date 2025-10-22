@@ -71,5 +71,4 @@ public class MemoryDataAccess implements DataAccess {
         }
         auths.remove(authToken);
     }
-    // Implement other methods similarly
 }
