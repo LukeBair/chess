@@ -25,17 +25,20 @@ public class MemoryDataAccess implements DataAccess {
 
     @Override
     public UserData getUser(String username) throws DataAccessException {
-        return null;
+        return users.get(username);
     }
 
     @Override
     public void createGame(GameData game) throws DataAccessException {
-
+        if (games.containsKey(game.gameID())) {
+            throw new DataAccessException("Game ID already exists");
+        }
+        games.put(game.gameID(), game);
     }
 
     @Override
     public GameData getGame(int gameID) throws DataAccessException {
-        return null;
+        return games.get(gameID);
     }
 
     @Override
