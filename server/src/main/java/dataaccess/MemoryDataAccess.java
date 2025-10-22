@@ -56,7 +56,7 @@ public class MemoryDataAccess implements DataAccess {
 
     @Override
     public void createAuth(AuthData auth) throws DataAccessException {
-
+        auths.put(auth.authToken(), auth);
     }
 
     @Override
