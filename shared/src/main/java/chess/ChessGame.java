@@ -157,7 +157,9 @@ public class ChessGame {
                     break;
                 }
             }
-            if (kingPosition != null) break;
+            if (kingPosition != null) {
+                break;
+            }
         }
 
         if (kingPosition == null) {
@@ -168,21 +170,26 @@ public class ChessGame {
             for (int col = 1; col <= 8; col++) {
                 ChessPosition pos = new ChessPosition(row, col);
                 ChessPiece piece = board.getPiece(pos);
+                if (piece == null || piece.getTeamColor() == teamColor) {
+                    continue;  // Early skip for non-enemies
+                }
 
-                if (piece != null && piece.getTeamColor() != teamColor) {
-                    Collection<ChessMove> enemyMoves = piece.pieceMoves(board, pos);
-
-                    for (ChessMove move : enemyMoves) {
-                        if (move.getEndPosition().equals(kingPosition)) {
-                            return true;
-                        }
-                    }
+                // Extracted: Check if this piece can attack king
+                if (canPieceAttackKing(piece, pos, board, kingPosition)) {
+                    return true;
                 }
             }
         }
 
         return false;
     }
+
+    private boolean canPieceAttackKing(ChessPiece piece, ChessPosition pos, ChessBoard board, ChessPosition kingPos) {
+        return piece.pieceMoves(board, pos)
+                .stream()  // Or loop if avoiding streams
+                .anyMatch(move -> move.getEndPosition().equals(kingPos));
+    }
+
     /**
      * Determines if the given team is in checkmate
      *
