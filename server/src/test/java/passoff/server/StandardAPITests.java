@@ -3,7 +3,6 @@ package passoff.server;
 import chess.ChessGame;
 import org.junit.jupiter.api.*;
 import passoff.model.*;
-import passoff.server.TestServerFacade;
 import server.Server;
 
 import java.net.HttpURLConnection;
@@ -78,8 +77,8 @@ public class StandardAPITests {
     @DisplayName("Login Bad Request")
     public void loginBadRequest() {
         TestUser[] incompleteLoginRequests = {
-                new TestUser(null, existingUser.getPassword()),
-                new TestUser(existingUser.getUsername(), null),
+            new TestUser(null, existingUser.getPassword()),
+            new TestUser(existingUser.getUsername(), null),
         };
 
         for (TestUser incompleteLoginRequest : incompleteLoginRequests) {
@@ -302,9 +301,9 @@ public class StandardAPITests {
     @DisplayName("List Multiple Games")
     public void listGamesSuccess() {
         //register a few users to create games
-        TestUser userA = new TestUser("a", "A", "a.A");
-        TestUser userB = new TestUser("b", "B", "b.B");
-        TestUser userC = new TestUser("c", "C", "c.C");
+        TestUser userA = new TestUser("a", "A", "a@mail.com");
+        TestUser userB = new TestUser("b", "B", "b@mail.com");
+        TestUser userC = new TestUser("c", "C", "c@mail.com");
 
         TestAuthResult authA = serverFacade.register(userA);
         TestAuthResult authB = serverFacade.register(userB);

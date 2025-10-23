@@ -94,7 +94,9 @@ public class Server {
     }
 
     private int determineStatus(String message) {
-        if (message == null) return 200;
+        if (message == null) {
+            return 200;
+        }
         if (message.contains("bad request")) {
             return 400;
         } else if (message.contains("unauthorized")) {
