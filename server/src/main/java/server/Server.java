@@ -30,6 +30,17 @@ public class Server {
             config.staticFiles.add("web");
         });
 
+        // Global exception handler for unhandled errors
+        javalin.exception(Exception.class, (e, ctx) -> {
+            ctx.status(500);
+            ctx.json(Map.of("message", "Error: " + e.getMessage()));
+        });
+
+        javalin.exception(DataAccessException.class, (e, ctx) -> {
+            ctx.status(500);
+            ctx.json(Map.of("message", "Error: " + e.getMessage()));
+        });
+
         // Register your endpoints
         javalin.post("/user", this::registerUser);
         javalin.post("/session", this::login);
@@ -42,6 +53,7 @@ public class Server {
 
     /**
      * Handles common result error patterns: sets status and responds with message if present.
+     * Assumes success results have no message(); error results do.
      * @param ctx The Javalin context.
      * @param result The service result to check.
      * @param successResponse A lambda to execute on success.
@@ -52,7 +64,7 @@ public class Server {
             if (message != null) {
                 int status = determineStatus(message);
                 ctx.status(status);
-                ctx.json(Map.of("message", message));
+                ctx.json(Map.of("message", "Error: " + message));
                 return;
             }
             successResponse.run();
@@ -63,24 +75,26 @@ public class Server {
     }
 
     private String getMessageFromResult(Object result) {
-        // Use reflection or instanceof for generality; tailored to your result classes.
-        if (result instanceof CreateGameResult createRes) {
-            return createRes.message();
-        } else if (result instanceof JoinGameResult(String message1)) {
-            return message1;
-        } else if (result instanceof ListGamesResult listRes) {
-            return listRes.message();
-        } else if (result instanceof LogoutResult(String message)) {
-            return message;
+        // Fixed pattern matching for records - access via bound variable
+        if (result instanceof RegisterResult regRes) {
+            return regRes.message();
         } else if (result instanceof LoginResult loginRes) {
             return loginRes.message();
-        } else if (result instanceof RegisterResult regRes) {
-            return regRes.message();
+        } else if (result instanceof LogoutResult logoutRes) {
+            return logoutRes.message();
+        } else if (result instanceof CreateGameResult createRes) {
+            return createRes.message();
+        } else if (result instanceof JoinGameResult joinRes) {
+            return joinRes.message();
+        } else if (result instanceof ListGamesResult listRes) {
+            return listRes.message();
         }
+        // Add more as needed for other results
         return null;
     }
 
     private int determineStatus(String message) {
+        if (message == null) return 200;
         if (message.contains("bad request")) {
             return 400;
         } else if (message.contains("unauthorized")) {
@@ -109,6 +123,11 @@ public class Server {
     private void joinGame(@NotNull Context context) {
         try {
             String authToken = context.header("Authorization");
+            if (authToken == null) {
+                context.status(401);
+                context.json(Map.of("message", "Error: unauthorized"));
+                return;
+            }
             JoinGameRequest request = context.bodyAsClass(JoinGameRequest.class);
             JoinGameResult result = gameService.joinGame(request, authToken);
             handleResult(context, result, () -> {
@@ -116,6 +135,7 @@ public class Server {
                 context.json(Map.of());
             });
         } catch (Exception e) {
+            // Deserialization or other input errors
             context.status(400);
             context.json(Map.of("message", "Error: bad request"));
         }
@@ -124,6 +144,11 @@ public class Server {
     private void createGame(@NotNull Context context) {
         try {
             String authToken = context.header("Authorization");
+            if (authToken == null) {
+                context.status(401);
+                context.json(Map.of("message", "Error: unauthorized"));
+                return;
+            }
             CreateGameRequest request = context.bodyAsClass(CreateGameRequest.class);
             CreateGameResult result = gameService.createGame(request, authToken);
             handleResult(context, result, () -> {
@@ -131,6 +156,7 @@ public class Server {
                 context.json(Map.of("gameID", result.gameID()));
             });
         } catch (Exception e) {
+            // Deserialization or other input errors
             context.status(400);
             context.json(Map.of("message", "Error: bad request"));
         }
@@ -139,6 +165,11 @@ public class Server {
     private void listGames(@NotNull Context context) {
         try {
             String authToken = context.header("Authorization");
+            if (authToken == null) {
+                context.status(401);
+                context.json(Map.of("message", "Error: unauthorized"));
+                return;
+            }
             ListGamesResult result = gameService.listGames(authToken);
             handleResult(context, result, () -> {
                 context.status(200);
@@ -178,6 +209,7 @@ public class Server {
                 context.json(Map.of("username", result.username(), "authToken", result.authToken()));
             });
         } catch (Exception e) {
+            // Deserialization or other input errors
             context.status(400);
             context.json(Map.of("message", "Error: bad request"));
         }
@@ -192,6 +224,7 @@ public class Server {
                 context.json(Map.of("username", result.username(), "authToken", result.authToken()));
             });
         } catch (Exception e) {
+            // Deserialization or other input errors
             context.status(400);
             context.json(Map.of("message", "Error: bad request"));
         }
