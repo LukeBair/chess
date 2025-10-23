@@ -1,14 +1,13 @@
 package java.service;
 
-import Service.GameService;
-import Service.UserService;
+import models.*;
+import service.GameService;
+import service.UserService;
 import dataaccess.DataAccess;
 import dataaccess.DataAccessException;
 import dataaccess.MemoryDataAccess;
-import model.GameData;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import server.Req_Res.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 

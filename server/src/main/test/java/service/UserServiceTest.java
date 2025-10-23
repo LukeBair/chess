@@ -3,13 +3,11 @@ package java.service;
 import dataaccess.DataAccess;
 import dataaccess.DataAccessException;
 import dataaccess.MemoryDataAccess;
-import model.AuthData;
-import model.UserData;
+import models.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mindrot.jbcrypt.BCrypt;
-import server.Req_Res.*;
-import Service.UserService;
+import service.UserService;
 
 import static org.junit.jupiter.api.Assertions.*;
 

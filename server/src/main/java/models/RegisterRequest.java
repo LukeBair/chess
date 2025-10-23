@@ -1,3 +1,3 @@
-package server.Req_Res;
+package models;
 
 public record RegisterRequest(String username, String password, String email) {}

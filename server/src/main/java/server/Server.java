@@ -5,11 +5,11 @@ import dataaccess.DataAccessException;
 import dataaccess.MemoryDataAccess;
 import io.javalin.*;
 import io.javalin.http.Context;
+import models.*;
 import org.jetbrains.annotations.NotNull;
-import Service.ClearService;
-import Service.GameService;
-import Service.UserService;
-import server.Req_Res.*;
+import service.ClearService;
+import service.GameService;
+import service.UserService;
 
 import java.util.Map;
 
@@ -40,6 +40,58 @@ public class Server {
         javalin.delete("/db", this::clear);
     }
 
+    /**
+     * Handles common result error patterns: sets status and responds with message if present.
+     * @param ctx The Javalin context.
+     * @param result The service result to check.
+     * @param successResponse A lambda to execute on success.
+     */
+    private void handleResult(@NotNull Context ctx, Object result, Runnable successResponse) {
+        try {
+            String message = getMessageFromResult(result);
+            if (message != null) {
+                int status = determineStatus(message);
+                ctx.status(status);
+                ctx.json(Map.of("message", message));
+                return;
+            }
+            successResponse.run();
+        } catch (Exception e) {
+            ctx.status(500);
+            ctx.json(Map.of("message", "Error: " + e.getMessage()));
+        }
+    }
+
+    private String getMessageFromResult(Object result) {
+        // Use reflection or instanceof for generality; tailored to your result classes.
+        if (result instanceof CreateGameResult createRes) {
+            return createRes.message();
+        } else if (result instanceof JoinGameResult(String message1)) {
+            return message1;
+        } else if (result instanceof ListGamesResult listRes) {
+            return listRes.message();
+        } else if (result instanceof LogoutResult(String message)) {
+            return message;
+        } else if (result instanceof LoginResult loginRes) {
+            return loginRes.message();
+        } else if (result instanceof RegisterResult regRes) {
+            return regRes.message();
+        }
+        return null;
+    }
+
+    private int determineStatus(String message) {
+        if (message.contains("bad request")) {
+            return 400;
+        } else if (message.contains("unauthorized")) {
+            return 401;
+        } else if (message.contains("already taken")) {
+            return 403;
+        } else {
+            return 500;
+        }
+    }
+
     private void clear(@NotNull Context context) {
         try {
             clearService.clear();
@@ -59,17 +111,10 @@ public class Server {
             String authToken = context.header("Authorization");
             JoinGameRequest request = context.bodyAsClass(JoinGameRequest.class);
             JoinGameResult result = gameService.joinGame(request, authToken);
-
-            if (result.message() != null) {
-                if (result.message().contains("bad request")) context.status(400);
-                else if (result.message().contains("unauthorized")) context.status(401);
-                else if (result.message().contains("already taken")) context.status(403);
-                else context.status(500);
-                context.json(Map.of("message", result.message()));
-                return;
-            }
-            context.status(200);
-            context.json(Map.of());
+            handleResult(context, result, () -> {
+                context.status(200);
+                context.json(Map.of());
+            });
         } catch (Exception e) {
             context.status(400);
             context.json(Map.of("message", "Error: bad request"));
@@ -81,16 +126,10 @@ public class Server {
             String authToken = context.header("Authorization");
             CreateGameRequest request = context.bodyAsClass(CreateGameRequest.class);
             CreateGameResult result = gameService.createGame(request, authToken);
-
-            if (result.message() != null) {
-                if (result.message().contains("bad request")) context.status(400);
-                else if (result.message().contains("unauthorized")) context.status(401);
-                else context.status(500);
-                context.json(Map.of("message", result.message()));
-                return;
-            }
-            context.status(200);
-            context.json(Map.of("gameID", result.gameID()));
+            handleResult(context, result, () -> {
+                context.status(200);
+                context.json(Map.of("gameID", result.gameID()));
+            });
         } catch (Exception e) {
             context.status(400);
             context.json(Map.of("message", "Error: bad request"));
@@ -101,15 +140,10 @@ public class Server {
         try {
             String authToken = context.header("Authorization");
             ListGamesResult result = gameService.listGames(authToken);
-
-            if (result.message() != null) {
-                if (result.message().contains("unauthorized")) context.status(401);
-                else context.status(500);
-                context.json(Map.of("message", result.message()));
-                return;
-            }
-            context.status(200);
-            context.json(Map.of("games", result.games()));
+            handleResult(context, result, () -> {
+                context.status(200);
+                context.json(Map.of("games", result.games()));
+            });
         } catch (Exception e) {
             context.status(500);
             context.json(Map.of("message", "Error: " + e.getMessage()));
@@ -125,15 +159,10 @@ public class Server {
                 return;
             }
             LogoutResult result = userService.logout(authToken);
-
-            if (result.message() != null) {
-                if (result.message().contains("unauthorized")) context.status(401);
-                else context.status(500);
-                context.json(Map.of("message", result.message()));
-                return;
-            }
-            context.status(200);
-            context.json(Map.of());
+            handleResult(context, result, () -> {
+                context.status(200);
+                context.json(Map.of());
+            });
         } catch (Exception e) {
             context.status(500);
             context.json(Map.of("message", "Error: " + e.getMessage()));
@@ -144,16 +173,10 @@ public class Server {
         try {
             LoginRequest request = context.bodyAsClass(LoginRequest.class);
             LoginResult result = userService.login(request);
-
-            if (result.message() != null) {
-                if (result.message().contains("bad request")) context.status(400);
-                else if (result.message().contains("unauthorized")) context.status(401);
-                else context.status(500);
-                context.json(Map.of("message", result.message()));
-                return;
-            }
-            context.status(200);
-            context.json(Map.of("username", result.username(), "authToken", result.authToken()));
+            handleResult(context, result, () -> {
+                context.status(200);
+                context.json(Map.of("username", result.username(), "authToken", result.authToken()));
+            });
         } catch (Exception e) {
             context.status(400);
             context.json(Map.of("message", "Error: bad request"));
@@ -164,16 +187,10 @@ public class Server {
         try {
             RegisterRequest request = context.bodyAsClass(RegisterRequest.class);
             RegisterResult result = userService.register(request);
-
-            if (result.message() != null) {
-                if (result.message().contains("bad request")) context.status(400);
-                else if (result.message().contains("already taken")) context.status(403);
-                else context.status(500);
-                context.json(Map.of("message", result.message()));
-                return;
-            }
-            context.status(200);
-            context.json(Map.of("username", result.username(), "authToken", result.authToken()));
+            handleResult(context, result, () -> {
+                context.status(200);
+                context.json(Map.of("username", result.username(), "authToken", result.authToken()));
+            });
         } catch (Exception e) {
             context.status(400);
             context.json(Map.of("message", "Error: bad request"));

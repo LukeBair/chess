@@ -1,2 +1,2 @@
-package server.Req_Res;
+package models;
 public record CreateGameResult(int gameID, String message) {}

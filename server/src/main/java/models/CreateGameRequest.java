@@ -1,3 +1,3 @@
-package server.Req_Res;
+package models;
 
 public record CreateGameRequest(String gameName) {}

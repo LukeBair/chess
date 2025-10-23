@@ -1,5 +1,5 @@
 package dataaccess;
-import model.*;
+import models.*;
 import java.util.*;
 
 public class MemoryDataAccess implements DataAccess {

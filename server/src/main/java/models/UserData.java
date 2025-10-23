@@ -1,4 +1,4 @@
-package model;
+package models;
 
 public record UserData(
         String username,

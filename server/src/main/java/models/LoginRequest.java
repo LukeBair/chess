@@ -1,3 +1,3 @@
-package server.Req_Res;
+package models;
 
 public record LoginRequest(String username, String password) {}

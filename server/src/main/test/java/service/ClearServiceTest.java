@@ -1,14 +1,14 @@
 package java.service;
 
-import Service.ClearService;
-import Service.GameService;
-import Service.UserService;
+import models.*;
+import service.ClearService;
+import service.GameService;
+import service.UserService;
 import dataaccess.DataAccess;
 import dataaccess.DataAccessException;
 import dataaccess.MemoryDataAccess;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import server.Req_Res.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -76,18 +76,15 @@ class ClearServiceTest {
         assertNull(dataAccess.getUser("user2"), "User2 should be deleted");
         assertNull(dataAccess.getUser("user3"), "User3 should be deleted");
 
-        // Verify ALL auth tokens are deleted
         assertNull(dataAccess.getAuth(regResult1.authToken()), "Auth1 should be deleted");
         assertNull(dataAccess.getAuth(regResult2.authToken()), "Auth2 should be deleted");
         assertNull(dataAccess.getAuth(regResult3.authToken()), "Auth3 should be deleted");
 
-        // Verify ALL games are deleted
         assertNull(dataAccess.getGame(gameResult1.gameID()), "Game1 should be deleted");
         assertNull(dataAccess.getGame(gameResult2.gameID()), "Game2 should be deleted");
         assertNull(dataAccess.getGame(gameResult3.gameID()), "Game3 should be deleted");
         assertNull(dataAccess.getGame(gameResult4.gameID()), "Game4 should be deleted");
 
-        // Verify list is empty
         assertTrue(dataAccess.listGames().isEmpty(), "Games list should be empty");
     }
 }

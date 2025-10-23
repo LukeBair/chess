@@ -1,11 +1,9 @@
-package Service;
+package service;
 
 import dataaccess.DataAccess;
 import dataaccess.DataAccessException;
-import model.AuthData;
-import model.GameData;
+import models.*;
 import chess.ChessGame;
-import server.Req_Res.*;
 
 import java.util.List;
 import java.util.UUID;

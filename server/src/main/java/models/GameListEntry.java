@@ -1,3 +1,3 @@
-package server.Req_Res;
+package models;
 
 public record GameListEntry(int gameID, String whiteUsername, String blackUsername, String gameName) {}

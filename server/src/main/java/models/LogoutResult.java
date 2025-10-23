@@ -1,3 +1,3 @@
-package server.Req_Res;
+package models;
 
 public record LogoutResult(String message) {} // message null on success
