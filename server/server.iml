@@ -4,5 +4,13 @@
     <content url="file://$MODULE_DIR$" dumb="true">
       <sourceFolder url="file://$MODULE_DIR$/src/test" isTestSource="true" />
     </content>
+    <orderEntry type="inheritedJdk" />
+    <orderEntry type="sourceFolder" forTests="false" />
+    <orderEntry type="module" module-name="shared" />
+    <orderEntry type="library" name="lib" level="project" />
+    <orderEntry type="library" name="junit.jupiter" level="project" />
+    <orderEntry type="library" name="google.code.gson" level="project" />
+    <orderEntry type="library" name="io.javalin" level="project" />
+    <orderEntry type="library" name="slf4j.simple" level="project" />
   </component>
 </module>

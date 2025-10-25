@@ -1,9 +1,10 @@
 package server;
 
+import com.google.gson.Gson;
 import dataaccess.DataAccess;
 import dataaccess.DataAccessException;
 import dataaccess.MemoryDataAccess;
-import io.javalin.*;
+import io.javalin.Javalin;
 import io.javalin.http.Context;
 import models.*;
 import org.jetbrains.annotations.NotNull;
@@ -19,12 +20,14 @@ public class Server {
     private final UserService userService;
     private final GameService gameService;
     private final ClearService clearService;
+    private final Gson gson;
 
     public Server() {
         DataAccess dataAccess = new MemoryDataAccess();
         this.userService = new UserService(dataAccess);
         this.gameService = new GameService(dataAccess);
         this.clearService = new ClearService(dataAccess);
+        this.gson = new Gson();
 
         javalin = Javalin.create(config -> {
             config.staticFiles.add("web");
@@ -33,15 +36,19 @@ public class Server {
         // Global exception handler for unhandled errors
         javalin.exception(Exception.class, (e, ctx) -> {
             ctx.status(500);
-            ctx.json(Map.of("message", "Error: " + e.getMessage()));
+            String json = gson.toJson(Map.of("message", "Error: " + e.getMessage()));
+            ctx.result(json);
+            ctx.contentType("application/json");
         });
 
         javalin.exception(DataAccessException.class, (e, ctx) -> {
             ctx.status(500);
-            ctx.json(Map.of("message", "Error: " + e.getMessage()));
+            String json = gson.toJson(Map.of("message", "Error: " + e.getMessage()));
+            ctx.result(json);
+            ctx.contentType("application/json");
         });
 
-        // Register your endpoints
+        // Register endpoints
         javalin.post("/user", this::registerUser);
         javalin.post("/session", this::login);
         javalin.delete("/session", this::logout);
@@ -51,31 +58,27 @@ public class Server {
         javalin.delete("/db", this::clear);
     }
 
-    /**
-     * Handles common result error patterns: sets status and responds with message if present.
-     * Assumes success results have no message(); error results do.
-     * @param ctx The Javalin context.
-     * @param result The service result to check.
-     * @param successResponse A lambda to execute on success.
-     */
     private void handleResult(@NotNull Context ctx, Object result, Runnable successResponse) {
         try {
             String message = getMessageFromResult(result);
             if (message != null) {
                 int status = determineStatus(message);
                 ctx.status(status);
-                ctx.json(Map.of("message", "Error: " + message));
+                String json = gson.toJson(Map.of("message", "Error: " + message));
+                ctx.result(json);
+                ctx.contentType("application/json");
                 return;
             }
             successResponse.run();
         } catch (Exception e) {
             ctx.status(500);
-            ctx.json(Map.of("message", "Error: " + e.getMessage()));
+            String json = gson.toJson(Map.of("message", "Error: " + e.getMessage()));
+            ctx.result(json);
+            ctx.contentType("application/json");
         }
     }
 
     private String getMessageFromResult(Object result) {
-        // Fixed pattern matching for records - access via bound variable
         if (result instanceof RegisterResult regRes) {
             return regRes.message();
         } else if (result instanceof LoginResult loginRes) {
@@ -89,7 +92,6 @@ public class Server {
         } else if (result instanceof ListGamesResult listRes) {
             return listRes.message();
         }
-        // Add more as needed for other results
         return null;
     }
 
@@ -112,13 +114,19 @@ public class Server {
         try {
             clearService.clear();
             context.status(200);
-            context.json(Map.of());
+            String json = gson.toJson(Map.of());
+            context.result(json);
+            context.contentType("application/json");
         } catch (DataAccessException e) {
             context.status(500);
-            context.json(Map.of("message", "Error: " + e.getMessage()));
+            String json = gson.toJson(Map.of("message", "Error: " + e.getMessage()));
+            context.result(json);
+            context.contentType("application/json");
         } catch (Exception e) {
             context.status(500);
-            context.json(Map.of("message", "Error: " + e.getMessage()));
+            String json = gson.toJson(Map.of("message", "Error: " + e.getMessage()));
+            context.result(json);
+            context.contentType("application/json");
         }
     }
 
@@ -127,19 +135,25 @@ public class Server {
             String authToken = context.header("Authorization");
             if (authToken == null) {
                 context.status(401);
-                context.json(Map.of("message", "Error: unauthorized"));
+                String json = gson.toJson(Map.of("message", "Error: unauthorized"));
+                context.result(json);
+                context.contentType("application/json");
                 return;
             }
-            JoinGameRequest request = context.bodyAsClass(JoinGameRequest.class);
+            String body = context.body();
+            JoinGameRequest request = gson.fromJson(body, JoinGameRequest.class);
             JoinGameResult result = gameService.joinGame(request, authToken);
             handleResult(context, result, () -> {
                 context.status(200);
-                context.json(Map.of());
+                String json = gson.toJson(Map.of());
+                context.result(json);
+                context.contentType("application/json");
             });
         } catch (Exception e) {
-            // Deserialization or other input errors
             context.status(400);
-            context.json(Map.of("message", "Error: bad request"));
+            String json = gson.toJson(Map.of("message", "Error: bad request"));
+            context.result(json);
+            context.contentType("application/json");
         }
     }
 
@@ -148,19 +162,25 @@ public class Server {
             String authToken = context.header("Authorization");
             if (authToken == null) {
                 context.status(401);
-                context.json(Map.of("message", "Error: unauthorized"));
+                String json = gson.toJson(Map.of("message", "Error: unauthorized"));
+                context.result(json);
+                context.contentType("application/json");
                 return;
             }
-            CreateGameRequest request = context.bodyAsClass(CreateGameRequest.class);
+            String body = context.body();
+            CreateGameRequest request = gson.fromJson(body, CreateGameRequest.class);
             CreateGameResult result = gameService.createGame(request, authToken);
             handleResult(context, result, () -> {
                 context.status(200);
-                context.json(Map.of("gameID", result.gameID()));
+                String json = gson.toJson(Map.of("gameID", result.gameID()));
+                context.result(json);
+                context.contentType("application/json");
             });
         } catch (Exception e) {
-            // Deserialization or other input errors
             context.status(400);
-            context.json(Map.of("message", "Error: bad request"));
+            String json = gson.toJson(Map.of("message", "Error: bad request"));
+            context.result(json);
+            context.contentType("application/json");
         }
     }
 
@@ -169,17 +189,23 @@ public class Server {
             String authToken = context.header("Authorization");
             if (authToken == null) {
                 context.status(401);
-                context.json(Map.of("message", "Error: unauthorized"));
+                String json = gson.toJson(Map.of("message", "Error: unauthorized"));
+                context.result(json);
+                context.contentType("application/json");
                 return;
             }
             ListGamesResult result = gameService.listGames(authToken);
             handleResult(context, result, () -> {
                 context.status(200);
-                context.json(Map.of("games", result.games()));
+                String json = gson.toJson(Map.of("games", result.games()));
+                context.result(json);
+                context.contentType("application/json");
             });
         } catch (Exception e) {
             context.status(500);
-            context.json(Map.of("message", "Error: " + e.getMessage()));
+            String json = gson.toJson(Map.of("message", "Error: " + e.getMessage()));
+            context.result(json);
+            context.contentType("application/json");
         }
     }
 
@@ -188,47 +214,61 @@ public class Server {
             String authToken = context.header("Authorization");
             if (authToken == null) {
                 context.status(401);
-                context.json(Map.of("message", "Error: unauthorized"));
+                String json = gson.toJson(Map.of("message", "Error: unauthorized"));
+                context.result(json);
+                context.contentType("application/json");
                 return;
             }
             LogoutResult result = userService.logout(authToken);
             handleResult(context, result, () -> {
                 context.status(200);
-                context.json(Map.of());
+                String json = gson.toJson(Map.of());
+                context.result(json);
+                context.contentType("application/json");
             });
         } catch (Exception e) {
             context.status(500);
-            context.json(Map.of("message", "Error: " + e.getMessage()));
+            String json = gson.toJson(Map.of("message", "Error: " + e.getMessage()));
+            context.result(json);
+            context.contentType("application/json");
         }
     }
 
     private void login(@NotNull Context context) {
         try {
-            LoginRequest request = context.bodyAsClass(LoginRequest.class);
+            String body = context.body();
+            LoginRequest request = gson.fromJson(body, LoginRequest.class);
             LoginResult result = userService.login(request);
             handleResult(context, result, () -> {
                 context.status(200);
-                context.json(Map.of("username", result.username(), "authToken", result.authToken()));
+                String json = gson.toJson(Map.of("username", result.username(), "authToken", result.authToken()));
+                context.result(json);
+                context.contentType("application/json");
             });
         } catch (Exception e) {
-            // Deserialization or other input errors
             context.status(400);
-            context.json(Map.of("message", "Error: bad request"));
+            String json = gson.toJson(Map.of("message", "Error: bad request"));
+            context.result(json);
+            context.contentType("application/json");
         }
     }
 
     private void registerUser(@NotNull Context context) {
         try {
-            RegisterRequest request = context.bodyAsClass(RegisterRequest.class);
+            String body = context.body();
+            RegisterRequest request = gson.fromJson(body, RegisterRequest.class);
             RegisterResult result = userService.register(request);
             handleResult(context, result, () -> {
                 context.status(200);
-                context.json(Map.of("username", result.username(), "authToken", result.authToken()));
+                String json = gson.toJson(Map.of("username", result.username(), "authToken", result.authToken()));
+                context.result(json);
+                context.contentType("application/json");
             });
         } catch (Exception e) {
-            // Deserialization or other input errors
             context.status(400);
-            context.json(Map.of("message", "Error: bad request"));
+            String json = gson.toJson(Map.of("message", "Error: bad request"));
+            context.result(json);
+            context.contentType("application/json");
         }
     }
 
