@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import dataaccess.DataAccess;
 import dataaccess.DataAccessException;
 import dataaccess.MemoryDataAccess;
+import dataaccess.SQLDataAccess;
 import io.javalin.Javalin;
 import io.javalin.http.Context;
 import models.*;
@@ -20,14 +21,33 @@ public class Server {
     private final UserService userService;
     private final GameService gameService;
     private final ClearService clearService;
+
+    private final GameService sqlGameService;
+    private final UserService sqlUserService;
+    private final ClearService sqlClearService;
+
     private final Gson gson;
 
     public Server() {
         DataAccess dataAccess = new MemoryDataAccess();
+        SQLDataAccess sqlDataAccess;
+
+        try {
+            sqlDataAccess = new SQLDataAccess();
+        } catch (DataAccessException e) {
+            throw new RuntimeException("Unable to initialize SQLDataAccess: " + e.getMessage());
+        }
+
         this.userService = new UserService(dataAccess);
         this.gameService = new GameService(dataAccess);
         this.clearService = new ClearService(dataAccess);
+
+        this.sqlUserService = new UserService(sqlDataAccess);
+        this.sqlGameService = new GameService(sqlDataAccess);
+        this.sqlClearService = new ClearService(sqlDataAccess);
+
         this.gson = new Gson();
+
 
         javalin = Javalin.create(config -> {
             config.staticFiles.add("web");
