@@ -10,7 +10,7 @@ public interface DataAccess {
     void clear() throws DataAccessException;
     void insertUser(UserData user) throws DataAccessException;
     UserData getUser(String username) throws DataAccessException;
-    void createGame(GameData game) throws DataAccessException;
+    int createGame(GameData game) throws DataAccessException;
     GameData getGame(int gameID) throws DataAccessException;
     List<GameData> listGames() throws DataAccessException;
     void updateGame(GameData game) throws DataAccessException;

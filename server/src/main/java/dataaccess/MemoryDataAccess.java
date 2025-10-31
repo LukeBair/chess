@@ -29,11 +29,13 @@ public class MemoryDataAccess implements DataAccess {
     }
 
     @Override
-    public void createGame(GameData game) throws DataAccessException {
+    public int createGame(GameData game) throws DataAccessException {
         if (games.containsKey(game.gameID())) {
             throw new DataAccessException("Game ID already exists");
         }
         games.put(game.gameID(), game);
+
+        return game.gameID();
     }
 
     @Override

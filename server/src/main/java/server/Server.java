@@ -18,13 +18,13 @@ import java.util.Map;
 public class Server {
 
     private final Javalin javalin;
-    private final UserService userService;
-    private final GameService gameService;
-    private final ClearService clearService;
+//    private final UserService userService;
+//    private final GameService gameService;
+//    private final ClearService clearService;
 
-    private final GameService sqlGameService;
-    private final UserService sqlUserService;
-    private final ClearService sqlClearService;
+    private final GameService gameService;
+    private final UserService userService;
+    private final ClearService clearService;
 
     private final Gson gson;
 
@@ -38,13 +38,13 @@ public class Server {
             throw new RuntimeException("Unable to initialize SQLDataAccess: " + e.getMessage());
         }
 
-        this.userService = new UserService(dataAccess);
-        this.gameService = new GameService(dataAccess);
-        this.clearService = new ClearService(dataAccess);
+        this.userService = new UserService(sqlDataAccess);
+        this.gameService = new GameService(sqlDataAccess);
+        this.clearService = new ClearService(sqlDataAccess);
 
-        this.sqlUserService = new UserService(sqlDataAccess);
-        this.sqlGameService = new GameService(sqlDataAccess);
-        this.sqlClearService = new ClearService(sqlDataAccess);
+//        this.sqlUserService = new UserService(sqlDataAccess);
+//        this.sqlGameService = new GameService(sqlDataAccess);
+//        this.sqlClearService = new ClearService(sqlDataAccess);
 
         this.gson = new Gson();
 

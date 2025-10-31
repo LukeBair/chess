@@ -1,14 +1,14 @@
 package dataaccess;
 
+import chess.ChessGame;
+import com.google.gson.Gson;
 import models.AuthData;
 import models.GameData;
 import models.UserData;
+import org.mindrot.jbcrypt.BCrypt;
 
-import java.io.IOException;
-import java.io.InputStream;
 import java.sql.*;
 import java.util.List;
-import java.util.Properties;
 
 public class SQLDataAccess implements DataAccess {
 
@@ -17,20 +17,8 @@ public class SQLDataAccess implements DataAccess {
     // -----------------------------------------------------------------
     // Load db.properties
     // -----------------------------------------------------------------
-    private final String dbUrl;
-    private final String dbUser;
-    private final String dbPassword;
 
     public SQLDataAccess() throws DataAccessException {
-        Properties props = loadProperties();
-        this.dbUrl      = props.getProperty("db.url");
-        this.dbUser     = props.getProperty("db.user");
-        this.dbPassword = props.getProperty("db.password");
-
-        if (dbUser == null || dbPassword == null) {
-            throw new DataAccessException("Missing required properties in " + DB_PROPERTIES);
-        }
-
         initTables();
     }
 
@@ -85,39 +73,21 @@ public class SQLDataAccess implements DataAccess {
 
     }
 
-    private Properties loadProperties() throws DataAccessException {
-        Properties props = new Properties();
-        try (InputStream is = getClass().getClassLoader().getResourceAsStream(DB_PROPERTIES)) {
-            if (is == null) {
-                throw new DataAccessException("Unable to locate " + DB_PROPERTIES + " on classpath");
-            }
-            props.load(is);
-        } catch (IOException e) {
-            throw new DataAccessException("Failed to read " + DB_PROPERTIES + ": " + e.getMessage());
-        }
-        return props;
-    }
-
     // -----------------------------------------------------------------
     // CLEAR – delete every row from the three tables
     // -----------------------------------------------------------------
     @Override
     public void clear() throws DataAccessException {
-        // Order matters when foreign-key constraints exist (auth → user, game → user)
-        String[] tables = {"auths", "games", "users"};   // adjust if your table names differ
+        try (Connection conn = DatabaseManager.getConnection();
+             Statement stmt = conn.createStatement()) {
 
-        String sql = String.join("; ",
-                "DELETE FROM auths",
-                "DELETE FROM games",
-                "DELETE FROM users");
-
-        try (Connection conn = DatabaseManager.getConnection()) {
-             Statement stmt = conn.createStatement();
-
-            stmt.executeUpdate(sql);
+            // Use correct table names matching your CREATE TABLE statements
+            stmt.executeUpdate("DELETE FROM auth");
+            stmt.executeUpdate("DELETE FROM games");
+            stmt.executeUpdate("DELETE FROM users");
 
         } catch (SQLException e) {
-            throw new DataAccessException("Error clearing database: " + e.getMessage(), e);
+            throw new DataAccessException("Error clearing database: " + e.getMessage());
         }
     }
 
@@ -161,11 +131,135 @@ public class SQLDataAccess implements DataAccess {
         }
     }
 
-    @Override public void createGame(GameData game) throws DataAccessException { }
-    @Override public GameData getGame(int gameID) throws DataAccessException { return null; }
-    @Override public List<GameData> listGames() throws DataAccessException { return List.of(); }
-    @Override public void updateGame(GameData game) throws DataAccessException { }
-    @Override public void createAuth(AuthData auth) throws DataAccessException { }
-    @Override public AuthData getAuth(String authToken) throws DataAccessException { return null; }
-    @Override public void deleteAuth(String authToken) throws DataAccessException { }
+    @Override public int createGame(GameData game) throws DataAccessException {
+        String sql = "INSERT INTO games (whiteUsername, blackUsername, gameName, game) VALUES (?, ?, ?, ?)";
+
+        try (Connection conn = DatabaseManager.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+
+            Gson gson = new Gson();
+            pstmt.setString(1, game.whiteUsername());
+            pstmt.setString(2, game.blackUsername());
+            pstmt.setString(3, game.gameName());
+            pstmt.setString(4, gson.toJson(game.game()));
+            pstmt.executeUpdate();
+
+            try (ResultSet generatedKeys = pstmt.getGeneratedKeys()) {
+                if (generatedKeys.next()) {
+                    return generatedKeys.getInt(1);
+                } else {
+                    throw new DataAccessException("Creating game failed, no ID obtained.");
+                }
+            }
+
+        } catch (SQLException e) {
+            throw new DataAccessException("Error creating game: " + e.getMessage(), e);
+        }
+    }
+
+    @Override public GameData getGame(int gameID) throws DataAccessException {
+        String sql = "SELECT gameID, whiteUsername, blackUsername, gameName, game FROM games WHERE gameID = ?";
+
+        try (Connection conn = DatabaseManager.getConnection()) {
+             PreparedStatement pstmt = conn.prepareStatement(sql);
+
+            pstmt.setInt(1, gameID);
+            ResultSet rs = pstmt.executeQuery();
+            if (rs.next()) {
+                Gson gson = new Gson();
+                return new GameData(
+                        rs.getInt("gameID"),
+                        rs.getString("whiteUsername"),
+                        rs.getString("blackUsername"),
+                        rs.getString("gameName"),
+                        gson.fromJson(rs.getString("game"), ChessGame.class)
+                );
+            } else {
+                return null;
+            }
+        } catch (SQLException e) {
+            throw new DataAccessException("Error retrieving game: " + gameID, e);
+        }
+    }
+    @Override public List<GameData> listGames() throws DataAccessException {
+        String sql = "SELECT gameID, whiteUsername, blackUsername, gameName, game FROM games";
+
+        try (Connection conn = DatabaseManager.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql);
+             ResultSet rs = pstmt.executeQuery()) {
+
+            Gson gson = new Gson();
+            List<GameData> games = new java.util.ArrayList<>();
+            while (rs.next()) {
+                games.add(new GameData(
+                        rs.getInt("gameID"),
+                        rs.getString("whiteUsername"),
+                        rs.getString("blackUsername"),
+                        rs.getString("gameName"),
+                        gson.fromJson(rs.getString("game"), ChessGame.class)
+                ));
+            }
+            return games;
+        } catch (SQLException e) {
+            throw new DataAccessException("Error listing games: " + e.getMessage(), e);
+        }
+    }
+
+    @Override public void updateGame(GameData game) throws DataAccessException {
+        String sql = "UPDATE games SET whiteUsername = ?, blackUsername = ?, gameName = ?, game = ? WHERE gameID = ?";
+        try (Connection conn = DatabaseManager.getConnection()) {
+            Gson gson = new Gson();
+            PreparedStatement pstmt = conn.prepareStatement(sql);
+            pstmt.setString(1, game.whiteUsername());
+            pstmt.setString(2, game.blackUsername());
+            pstmt.setString(3, game.gameName());
+            pstmt.setString(4, gson.toJson(game.game()));
+            pstmt.setInt(5, game.gameID());
+            pstmt.executeUpdate();
+        } catch (SQLException e) {
+            throw new DataAccessException("Error updating game: " + e.getMessage(), e);
+        }
+    }
+    @Override public void createAuth(AuthData auth) throws DataAccessException {
+        String sql = "INSERT INTO auth (authToken, username) VALUES (?, ?)";
+        try (Connection conn = DatabaseManager.getConnection()) {
+            PreparedStatement pstmt = conn.prepareStatement(sql);
+            pstmt.setString(1, auth.authToken());
+            pstmt.setString(2, auth.username());
+            pstmt.executeUpdate();
+        } catch (SQLException e) {
+            throw new DataAccessException("Error creating auth: " + e.getMessage(), e);
+        }
+    }
+    @Override public AuthData getAuth(String authToken) throws DataAccessException {
+        String sql = "SELECT authToken, username FROM auth WHERE authToken = ?";
+
+        try (Connection conn = DatabaseManager.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setString(1, authToken);
+            ResultSet rs = pstmt.executeQuery();
+            return rs.next()
+                    ? new AuthData(rs.getString("authToken"),
+                    rs.getString("username"))
+                    : null;
+        } catch (SQLException e) {
+            throw new DataAccessException("Error retrieving auth: " + authToken, e);
+        }
+    }
+    @Override public void deleteAuth(String authToken) throws DataAccessException {
+        String sql = "DELETE FROM auth WHERE authToken = ?";
+
+        try (Connection conn = DatabaseManager.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setString(1, authToken);
+            int affectedRows = pstmt.executeUpdate();
+            if (affectedRows == 0) {
+                throw new DataAccessException("Auth token not found: " + authToken);
+            }
+        } catch (SQLException e) {
+            throw new DataAccessException("Error deleting auth: " + authToken, e);
+        }
+    }
 }
