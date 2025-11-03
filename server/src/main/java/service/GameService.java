@@ -47,8 +47,12 @@ public class GameService {
             if (request.gameName() == null || request.gameName().trim().isEmpty()) {
                 return new CreateGameResult(-1, "Error: bad request");
             }
-            GameData game = new GameData(-1, null, null, request.gameName(), new ChessGame());
-            int id = dao.createGame(game);
+
+            // Generate a random positive integer ID
+            int id = new java.util.Random().nextInt(Integer.MAX_VALUE) + 1;
+
+            GameData game = new GameData(id, null, null, request.gameName(), new ChessGame());
+            dao.createGame(game);
             return new CreateGameResult(id, null);
         } catch (DataAccessException e) {
             return new CreateGameResult(-1, "Error: " + e.getMessage());

@@ -47,7 +47,7 @@ public class SQLDataAccess implements DataAccess {
 
             String createGameTable = """
                 CREATE TABLE IF NOT EXISTS games (
-                    gameID INT AUTO_INCREMENT PRIMARY KEY,
+                    gameID INT PRIMARY KEY,
                     whiteUsername VARCHAR(255),
                     blackUsername VARCHAR(255),
                     gameName VARCHAR(255) NOT NULL,
@@ -132,16 +132,17 @@ public class SQLDataAccess implements DataAccess {
     }
 
     @Override public int createGame(GameData game) throws DataAccessException {
-        String sql = "INSERT INTO games (whiteUsername, blackUsername, gameName, game) VALUES (?, ?, ?, ?)";
+        String sql = "INSERT INTO games (gameID, whiteUsername, blackUsername, gameName, game) VALUES (?, ?, ?, ?, ?)";
 
         try (Connection conn = DatabaseManager.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
 
             Gson gson = new Gson();
-            pstmt.setString(1, game.whiteUsername());
-            pstmt.setString(2, game.blackUsername());
-            pstmt.setString(3, game.gameName());
-            pstmt.setString(4, gson.toJson(game.game()));
+            pstmt.setInt(1, game.gameID());
+            pstmt.setString(2, game.whiteUsername());
+            pstmt.setString(3, game.blackUsername());
+            pstmt.setString(4, game.gameName());
+            pstmt.setString(5, gson.toJson(game.game()));
             pstmt.executeUpdate();
 
             try (ResultSet generatedKeys = pstmt.getGeneratedKeys()) {
