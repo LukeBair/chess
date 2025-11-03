@@ -145,13 +145,7 @@ public class SQLDataAccess implements DataAccess {
             pstmt.setString(5, gson.toJson(game.game()));
             pstmt.executeUpdate();
 
-            try (ResultSet generatedKeys = pstmt.getGeneratedKeys()) {
-                if (generatedKeys.next()) {
-                    return generatedKeys.getInt(1);
-                } else {
-                    throw new DataAccessException("Creating game failed, no ID obtained.");
-                }
-            }
+            return game.gameID();
 
         } catch (SQLException e) {
             throw new DataAccessException("Error creating game: " + e.getMessage(), e);
