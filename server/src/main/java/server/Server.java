@@ -26,7 +26,6 @@ public class Server {
     private final Gson gson;
 
     public Server() {
-        // removed the memory data access cause im not sure how to use it properly here. Will ask proffesor in class
         DataAccess dataAccess = new MemoryDataAccess();
         SQLDataAccess sqlDataAccess;
 
@@ -42,27 +41,18 @@ public class Server {
 
         this.gson = new Gson();
 
-
         javalin = Javalin.create(config -> {
             config.staticFiles.add("web");
         });
 
-        // Global exception handler for unhandled errors
         javalin.exception(Exception.class, (e, ctx) -> {
-            ctx.status(500);
-            String json = gson.toJson(Map.of("message", "Error: " + e.getMessage()));
-            ctx.result(json);
-            ctx.contentType("application/json");
+            sendErrorResponse(ctx, 500, e.getMessage());
         });
 
         javalin.exception(DataAccessException.class, (e, ctx) -> {
-            ctx.status(500);
-            String json = gson.toJson(Map.of("message", "Error: " + e.getMessage()));
-            ctx.result(json);
-            ctx.contentType("application/json");
+            sendErrorResponse(ctx, 500, e.getMessage());
         });
 
-        // Register endpoints
         javalin.post("/user", this::registerUser);
         javalin.post("/session", this::login);
         javalin.delete("/session", this::logout);
@@ -72,23 +62,39 @@ public class Server {
         javalin.delete("/db", this::clear);
     }
 
+    private void sendErrorResponse(@NotNull Context ctx, int status, String message) {
+        ctx.status(status);
+        String json = gson.toJson(Map.of("message", "Error: " + message));
+        ctx.result(json);
+        ctx.contentType("application/json");
+    }
+
+    private void sendSuccessResponse(@NotNull Context ctx, Map<String, Object> data) {
+        ctx.status(200);
+        String json = gson.toJson(data);
+        ctx.result(json);
+        ctx.contentType("application/json");
+    }
+
+    private String getAuthToken(@NotNull Context ctx) {
+        String authToken = ctx.header("Authorization");
+        if (authToken == null) {
+            sendErrorResponse(ctx, 401, "unauthorized");
+        }
+        return authToken;
+    }
+
     private void handleResult(@NotNull Context ctx, Object result, Runnable successResponse) {
         try {
             String message = getMessageFromResult(result);
             if (message != null) {
                 int status = determineStatus(message);
-                ctx.status(status);
-                String json = gson.toJson(Map.of("message", "Error: " + message));
-                ctx.result(json);
-                ctx.contentType("application/json");
+                sendErrorResponse(ctx, status, message);
                 return;
             }
             successResponse.run();
         } catch (Exception e) {
-            ctx.status(500);
-            String json = gson.toJson(Map.of("message", "Error: " + e.getMessage()));
-            ctx.result(json);
-            ctx.contentType("application/json");
+            sendErrorResponse(ctx, 500, e.getMessage());
         }
     }
 
@@ -97,12 +103,12 @@ public class Server {
             return regRes.message();
         } else if (result instanceof LoginResult loginRes) {
             return loginRes.message();
-        } else if (result instanceof LogoutResult logoutRes) {
-            return logoutRes.message();
+        } else if (result instanceof LogoutResult(String message)) {
+            return message;
         } else if (result instanceof CreateGameResult createRes) {
             return createRes.message();
-        } else if (result instanceof JoinGameResult joinRes) {
-            return joinRes.message();
+        } else if (result instanceof JoinGameResult(String message)) {
+            return message;
         } else if (result instanceof ListGamesResult listRes) {
             return listRes.message();
         }
@@ -127,124 +133,77 @@ public class Server {
     private void clear(@NotNull Context context) {
         try {
             clearService.clear();
-            context.status(200);
-            String json = gson.toJson(Map.of());
-            context.result(json);
-            context.contentType("application/json");
-        } catch (DataAccessException e) {
-            context.status(500);
-            String json = gson.toJson(Map.of("message", "Error: " + e.getMessage()));
-            context.result(json);
-            context.contentType("application/json");
+            sendSuccessResponse(context, Map.of());
         } catch (Exception e) {
-            context.status(500);
-            String json = gson.toJson(Map.of("message", "Error: " + e.getMessage()));
-            context.result(json);
-            context.contentType("application/json");
+            sendErrorResponse(context, 500, e.getMessage());
         }
     }
 
     private void joinGame(@NotNull Context context) {
         try {
-            String authToken = context.header("Authorization");
+            String authToken = getAuthToken(context);
             if (authToken == null) {
-                context.status(401);
-                String json = gson.toJson(Map.of("message", "Error: unauthorized"));
-                context.result(json);
-                context.contentType("application/json");
                 return;
             }
+
             String body = context.body();
             JoinGameRequest request = gson.fromJson(body, JoinGameRequest.class);
             JoinGameResult result = gameService.joinGame(request, authToken);
             handleResult(context, result, () -> {
-                context.status(200);
-                String json = gson.toJson(Map.of());
-                context.result(json);
-                context.contentType("application/json");
+                sendSuccessResponse(context, Map.of());
             });
         } catch (Exception e) {
-            context.status(400);
-            String json = gson.toJson(Map.of("message", "Error: bad request"));
-            context.result(json);
-            context.contentType("application/json");
+            sendErrorResponse(context, 400, "bad request");
         }
     }
 
     private void createGame(@NotNull Context context) {
         try {
-            String authToken = context.header("Authorization");
+            String authToken = getAuthToken(context);
             if (authToken == null) {
-                context.status(401);
-                String json = gson.toJson(Map.of("message", "Error: unauthorized"));
-                context.result(json);
-                context.contentType("application/json");
                 return;
             }
+
             String body = context.body();
             CreateGameRequest request = gson.fromJson(body, CreateGameRequest.class);
             CreateGameResult result = gameService.createGame(request, authToken);
             handleResult(context, result, () -> {
-                context.status(200);
-                String json = gson.toJson(Map.of("gameID", result.gameID()));
-                context.result(json);
-                context.contentType("application/json");
+                sendSuccessResponse(context, Map.of("gameID", result.gameID()));
             });
         } catch (Exception e) {
-            context.status(400);
-            String json = gson.toJson(Map.of("message", "Error: bad request"));
-            context.result(json);
-            context.contentType("application/json");
+            sendErrorResponse(context, 400, "bad request");
         }
     }
 
     private void listGames(@NotNull Context context) {
         try {
-            String authToken = context.header("Authorization");
+            String authToken = getAuthToken(context);
             if (authToken == null) {
-                context.status(401);
-                String json = gson.toJson(Map.of("message", "Error: unauthorized"));
-                context.result(json);
-                context.contentType("application/json");
                 return;
             }
+
             ListGamesResult result = gameService.listGames(authToken);
             handleResult(context, result, () -> {
-                context.status(200);
-                String json = gson.toJson(Map.of("games", result.games()));
-                context.result(json);
-                context.contentType("application/json");
+                sendSuccessResponse(context, Map.of("games", result.games()));
             });
         } catch (Exception e) {
-            context.status(500);
-            String json = gson.toJson(Map.of("message", "Error: " + e.getMessage()));
-            context.result(json);
-            context.contentType("application/json");
+            sendErrorResponse(context, 500, e.getMessage());
         }
     }
 
     private void logout(@NotNull Context context) {
         try {
-            String authToken = context.header("Authorization");
+            String authToken = getAuthToken(context);
             if (authToken == null) {
-                context.status(401);
-                String json = gson.toJson(Map.of("message", "Error: unauthorized"));
-                context.result(json);
-                context.contentType("application/json");
                 return;
             }
+
             LogoutResult result = userService.logout(authToken);
             handleResult(context, result, () -> {
-                context.status(200);
-                String json = gson.toJson(Map.of());
-                context.result(json);
-                context.contentType("application/json");
+                sendSuccessResponse(context, Map.of());
             });
         } catch (Exception e) {
-            context.status(500);
-            String json = gson.toJson(Map.of("message", "Error: " + e.getMessage()));
-            context.result(json);
-            context.contentType("application/json");
+            sendErrorResponse(context, 500, e.getMessage());
         }
     }
 
@@ -254,16 +213,10 @@ public class Server {
             LoginRequest request = gson.fromJson(body, LoginRequest.class);
             LoginResult result = userService.login(request);
             handleResult(context, result, () -> {
-                context.status(200);
-                String json = gson.toJson(Map.of("username", result.username(), "authToken", result.authToken()));
-                context.result(json);
-                context.contentType("application/json");
+                sendSuccessResponse(context, Map.of("username", result.username(), "authToken", result.authToken()));
             });
         } catch (Exception e) {
-            context.status(400);
-            String json = gson.toJson(Map.of("message", "Error: bad request"));
-            context.result(json);
-            context.contentType("application/json");
+            sendErrorResponse(context, 400, "bad request");
         }
     }
 
@@ -273,16 +226,10 @@ public class Server {
             RegisterRequest request = gson.fromJson(body, RegisterRequest.class);
             RegisterResult result = userService.register(request);
             handleResult(context, result, () -> {
-                context.status(200);
-                String json = gson.toJson(Map.of("username", result.username(), "authToken", result.authToken()));
-                context.result(json);
-                context.contentType("application/json");
+                sendSuccessResponse(context, Map.of("username", result.username(), "authToken", result.authToken()));
             });
         } catch (Exception e) {
-            context.status(400);
-            String json = gson.toJson(Map.of("message", "Error: bad request"));
-            context.result(json);
-            context.contentType("application/json");
+            sendErrorResponse(context, 400, "bad request");
         }
     }
 
