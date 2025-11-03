@@ -18,9 +18,6 @@ import java.util.Map;
 public class Server {
 
     private final Javalin javalin;
-//    private final UserService userService;
-//    private final GameService gameService;
-//    private final ClearService clearService;
 
     private final GameService gameService;
     private final UserService userService;
@@ -29,6 +26,7 @@ public class Server {
     private final Gson gson;
 
     public Server() {
+        // removed the memory data access cause im not sure how to use it properly here. Will ask proffesor in class
         DataAccess dataAccess = new MemoryDataAccess();
         SQLDataAccess sqlDataAccess;
 
@@ -41,10 +39,6 @@ public class Server {
         this.userService = new UserService(sqlDataAccess);
         this.gameService = new GameService(sqlDataAccess);
         this.clearService = new ClearService(sqlDataAccess);
-
-//        this.sqlUserService = new UserService(sqlDataAccess);
-//        this.sqlGameService = new GameService(sqlDataAccess);
-//        this.sqlClearService = new ClearService(sqlDataAccess);
 
         this.gson = new Gson();
 
