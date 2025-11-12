@@ -1,5 +1,6 @@
 import chess.*;
 import client.data.ServerFacade;
+import ui.GameManager;
 
 public class Main {
     public static void main(String[] args) {
@@ -7,9 +8,12 @@ public class Main {
         ServerFacade serverFacade = new ServerFacade(port);
 
         try {
-        serverFacade.test();
+            serverFacade.test();
         } catch (Exception e) {
             System.out.println("Error during server test: " + e.getMessage());
         }
+
+        GameManager gameManager = new GameManager();
+        gameManager.start();
     }
 }
