@@ -1,39 +1,36 @@
 package ui;
 
+import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.PriorityQueue;
 import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class Renderer extends Thread {
-    private final Queue<String> renderQueue = new LinkedList<>();
+    private final Queue<String> renderQueue = new ConcurrentLinkedQueue<>();
 
     public void enqueueRenderTask(String task) {
-        synchronized (renderQueue) {
-            renderQueue.add(task);
-            renderQueue.notify();
+        renderQueue.offer(task);
+    }
+
+    public void enqueueRenderTasks(String[] tasks) {
+        for (String task : tasks) {
+            renderQueue.offer(task);
         }
     }
 
     public void run() {
         while (GameManager.running) {
-            // Rendering logic goes here
             try {
-                Thread.sleep(64); // Approx. 15 FPS
-
                 if (renderQueue.isEmpty()) {
-                    synchronized (renderQueue) {
-                        renderQueue.wait();
-                    }
+                    Thread.sleep(64);
                 } else {
-                    String task;
-                    synchronized (renderQueue) {
-                        task = renderQueue.poll();
-                    }
+                    String task = renderQueue.poll();
+
                     if (task != null) {
-                        System.out.println("Rendering task: " + task);
+                        System.out.println(task);
                     }
                 }
-
             } catch (InterruptedException e) {
                 break;
             }

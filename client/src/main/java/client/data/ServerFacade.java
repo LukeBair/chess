@@ -86,11 +86,5 @@ public class ServerFacade {
                 .build();
 
         HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-
-        if (response.statusCode() == 200) {
-            System.out.println("Server is running: " + response.body());
-        } else {
-            throw new RuntimeException("Test failed: " + response.body());
-        }
     }
 }
