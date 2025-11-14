@@ -5,12 +5,11 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.net.URI;
+import java.util.Map;
 
 import chess.ChessGame;
 import com.google.gson.Gson;
-import models.AuthData;
-import models.GameListEntry;
-import models.LoginRequest;
+import models.*;
 
 public class ServerFacade {
     private final String baseUrl;
@@ -62,17 +61,37 @@ public class ServerFacade {
     }
 
     public void logout(String authToken) throws IOException, InterruptedException {
-        // POST to /session with auth header: "Bearer " + authToken
-        // Expect 200 OK, no body
-        // TODO: Implement
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(baseUrl + "session"))
+                .header("Authorization", authToken)
+                .DELETE()
+                .build();
+
+        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+
+        if (response.statusCode() != 200) {
+            throw new RuntimeException("Logout failed: " + response.body());
+        }
     }
 
-    // Game methods
     public ChessGame createGame(String gameName, String authToken) throws IOException, InterruptedException {
-        // POST to /game with {"gameName": "..."} and auth header
-        // Parse response to Game
-        // TODO: Implement
-        return null; // Placeholder
+        String jsonBody = gson.toJson(new CreateGameRequest(gameName));
+
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(baseUrl + "game"))
+                .header("Content-Type", "application/json")
+                .header("Authorization", authToken)
+                .POST(HttpRequest.BodyPublishers.ofString(jsonBody))
+                .build();
+
+        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+
+        if (response.statusCode() == 200) {
+           //TODO: return intial game state
+            return new ChessGame();
+        } else {
+            throw new RuntimeException("Create game failed: " + response.body());
+        }
     }
 
     public GameListEntry[] listGames(String authToken) throws IOException, InterruptedException {
@@ -96,15 +115,20 @@ public class ServerFacade {
     }
 
     public void joinGame(int gameId, String playerColor, String authToken) throws IOException, InterruptedException {
-        // POST to /game/{gameId} with {"playerColor": "WHITE" or "BLACK"} and auth header
-        // Expect 200 OK
-        // TODO: Implement
-    }
+        String jsonBody = gson.toJson(new JoinGameRequest(playerColor, gameId));
 
-    // Helper classes (inner or separate files)
-    private static class RegisterRequest {
-        String username, password, email;
-        RegisterRequest(String u, String p, String e) { username = u; password = p; email = e; }
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(baseUrl + "game"))
+                .header("Content-Type", "application/json")
+                .header("Authorization", authToken)
+                .PUT(HttpRequest.BodyPublishers.ofString(jsonBody))
+                .build();
+
+        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+
+        if (response.statusCode() != 200) {
+            throw new RuntimeException("Join game failed: " + response.body());
+        }
     }
 
     public void test() throws IOException, InterruptedException {
