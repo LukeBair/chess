@@ -1,7 +1,11 @@
 package ui;
 import client.data.ServerFacade;
+import models.AuthData;
+import models.GameListEntry;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Scanner;
 /*
 * inspired by unity game object classes
@@ -15,6 +19,8 @@ public class GameManager {
     private final Renderer renderer = new Renderer();
     private final ServerFacade server = new ServerFacade(8080);
     private GameState currentState = GameState.MENU;
+
+    private AuthData authData;
 
     private enum GameState {
         MENU,
@@ -62,6 +68,55 @@ public class GameManager {
             displayLogin();
         } else if (currentState == GameState.CREATE_ACCOUNT) {
             displayCreateAccount();
+        } else if (currentState == GameState.VIEW_GAMES) {
+            displayViewGames();
+        } else if (currentState == GameState.PLAYING) {
+            displayPlayingGame();
+        } else if (currentState == GameState.LOGOUT) {
+            displayLogout();
+        }
+    }
+
+    private void displayPlayingGame() {
+
+    }
+
+    private void displayLogout() {
+        
+    }
+
+    private void displayViewGames() {
+        try {
+            GameListEntry[] games = server.listGames(authData.authToken());
+            ArrayList<String> renderTasks = new ArrayList<>();
+
+            renderTasks.add(Common.GAME_TITLE);
+            renderTasks.add("\n\n\n");
+            renderTasks.add("Games:");
+
+            for (GameListEntry game : games) {
+                String whitePlayer = (game.whiteUsername() != null) ? game.whiteUsername() + " (WHITE)" : "UNASSIGNED (WHITE)";
+                String blackPlayer = (game.blackUsername() != null) ? game.blackUsername() + " (BLACK)" : "UNASSIGNED (BLACK)";
+
+                String players;
+                if (game.whiteUsername() != null && game.blackUsername() != null) {
+                    players = whitePlayer + " vs " + blackPlayer;
+                } else if (game.whiteUsername() != null) {
+                    players = whitePlayer + " or " + blackPlayer;
+                } else if (game.blackUsername() != null) {
+                    players = blackPlayer + " or " + whitePlayer;
+                } else {
+                    players = whitePlayer + " or " + blackPlayer;
+                }
+                String formatted = game.gameName() + " -------- " + players + ", game id " + game.gameID();
+                renderTasks.add(formatted);
+            }
+
+
+            renderer.enqueueRenderTasks(renderTasks.toArray(new String[] {}));
+
+        } catch (IOException | InterruptedException e) {
+            throw new RuntimeException(e);
         }
     }
 
@@ -110,7 +165,7 @@ public class GameManager {
         String email = getInput();
 
         try {
-            var registerResult = server.register(username, password, email);
+            authData = server.register(username, password, email);
             renderer.enqueueRenderTasks(new String [] { "\n", "Successfully created account!" });
             Thread.sleep(100);
             currentState = GameState.VIEW_GAMES;
@@ -139,7 +194,7 @@ public class GameManager {
         String password = getInput();
 
         try {
-            var loginResult = server.login(username, password);
+            authData = server.login(username, password);
             renderer.enqueueRenderTasks(new String [] { "\n", "You have successfully logged in!" });
             currentState = GameState.VIEW_GAMES;
         } catch (IOException | InterruptedException e) {

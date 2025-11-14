@@ -9,6 +9,7 @@ import java.net.URI;
 import chess.ChessGame;
 import com.google.gson.Gson;
 import models.AuthData;
+import models.GameListEntry;
 import models.LoginRequest;
 
 public class ServerFacade {
@@ -74,9 +75,24 @@ public class ServerFacade {
         return null; // Placeholder
     }
 
-    public ChessGame[] listGames(String authToken) throws IOException, InterruptedException {
+    public GameListEntry[] listGames(String authToken) throws IOException, InterruptedException {
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(baseUrl + "game"))
+                .header("Authorization", "Bearer " + authToken)
+                .GET()
+                .build();
 
-        return null; // Placeholder
+        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+
+        if (response.statusCode() == 200) {
+            class ListGamesResponse {
+                GameListEntry[] games;
+            }
+            ListGamesResponse res = gson.fromJson(response.body(), ListGamesResponse.class);
+            return res.games != null ? res.games : new GameListEntry[0];
+        } else {
+            throw new RuntimeException("List games failed: " + response.body());
+        }
     }
 
     public void joinGame(int gameId, String playerColor, String authToken) throws IOException, InterruptedException {
