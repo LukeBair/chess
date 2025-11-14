@@ -1,6 +1,7 @@
 package ui;
 import client.data.ServerFacade;
 
+import java.io.IOException;
 import java.util.Scanner;
 /*
 * inspired by unity game object classes
@@ -12,7 +13,7 @@ public class GameManager {
 
     private final Scanner scanner = new Scanner(System.in);
     private final Renderer renderer = new Renderer();
-
+    private final ServerFacade server = new ServerFacade(8080);
     private GameState currentState = GameState.MENU;
 
     private enum GameState {
@@ -22,20 +23,18 @@ public class GameManager {
         VIEW_GAMES,
         PLAYING,
         LOGOUT,
-        ERROR
+        ERROR,
+        QUIT
     }
 
     public void start() {
-        int port = 8080;
-        ServerFacade serverFacade = new ServerFacade(port);
-
         String input = "";
 
         running = true;
         renderer.start();
 
         try {
-            serverFacade.test();
+            server.test();
         } catch (Exception e) {
             currentState = GameState.ERROR;
             renderer.enqueueRenderTasks(new String[] {
@@ -49,26 +48,107 @@ public class GameManager {
 
         while (running) {
             update(input);
-            input = getInput();
+//            input = getInput();
         }
     }
 
     public void update(String input) {
-        if (input.equals("exit")) {
+        if (currentState == GameState.QUIT) {
+            // WARNING: for testing only right now
             running = false;
-        } else {
-            renderer.enqueueRenderTask(EscapeSequences.ERASE_SCREEN);
-            if (currentState == GameState.MENU) {
-                renderer.enqueueRenderTasks(new String[] {
-                        Common.GAME_TITLE,
-                        "\n\n\n",
-                        "login - Login to your account",
-                        "create - Create a new account",
-                        "exit - Exit the game"
-                });
-            }
+        } else if (currentState == GameState.MENU) {
+            displayMainMenu();
+        } else if (currentState == GameState.LOGIN) {
+            displayLogin();
+        } else if (currentState == GameState.CREATE_ACCOUNT) {
+            displayCreateAccount();
         }
     }
+
+    private void displayMainMenu() {
+        renderer.enqueueRenderTask(EscapeSequences.ERASE_SCREEN);
+        renderer.enqueueRenderTasks(new String[] {
+                Common.GAME_TITLE,
+                "\n\n\n",
+                "login - Login to your account",
+                "create - Create a new account",
+                "exit - Exit the game"
+        });
+
+        var input = getInput();
+
+        if(input.equalsIgnoreCase("login")) {
+            currentState = GameState.LOGIN;
+        } else if (input.equalsIgnoreCase("create")) {
+            currentState = GameState.CREATE_ACCOUNT;
+        } else if(input.equalsIgnoreCase("exit")) {
+            currentState = GameState.QUIT;
+        }
+    }
+
+    private void displayCreateAccount() {
+        renderer.enqueueRenderTasks(new String[] {
+                Common.GAME_TITLE,
+                "\n\n\n",
+                "What will your username be?"
+        });
+
+        String username = getInput();
+
+        renderer.enqueueRenderTasks(new String[] {
+                "\n",
+                "What will your password be?"
+        });
+
+        String password = getInput();
+
+        renderer.enqueueRenderTasks(new String[] {
+                "\n",
+                "Finally, what is your email address?"
+        });
+
+        String email = getInput();
+
+        try {
+            var registerResult = server.register(username, password, email);
+            renderer.enqueueRenderTasks(new String [] { "\n", "Successfully created account!" });
+            Thread.sleep(100);
+            currentState = GameState.VIEW_GAMES;
+        } catch (IOException | InterruptedException e) {
+            // TODO: PROPER ERROR HANDLING NEEDED
+            renderer.enqueueRenderTask(e.toString());
+            throw new RuntimeException(e);
+        }
+    }
+
+    // DISPLAYS
+    public void displayLogin() {
+        renderer.enqueueRenderTasks(new String[] {
+                Common.GAME_TITLE,
+                "\n\n\n",
+                "Please enter your username"
+        });
+
+        String username = getInput();
+
+        renderer.enqueueRenderTasks(new String[] {
+                "\n",
+                "Please enter your password"
+        });
+
+        String password = getInput();
+
+        try {
+            var loginResult = server.login(username, password);
+            renderer.enqueueRenderTasks(new String [] { "\n", "You have successfully logged in!" });
+            currentState = GameState.VIEW_GAMES;
+        } catch (IOException | InterruptedException e) {
+            // TODO: proper error handling
+            renderer.enqueueRenderTask(e.toString());
+            throw new RuntimeException(e);
+        }
+    }
+
 
     // get and validate user input
     public String getInput() {
