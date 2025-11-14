@@ -36,4 +36,6 @@ public class Common {
             "                                                  \n" +
             "                                                  " +
             EscapeSequences.RESET_TEXT_COLOR;
+
+    public static String LOGIN_PROMPT = "";
 }
