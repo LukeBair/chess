@@ -9,6 +9,7 @@ import java.net.URI;
 import chess.ChessGame;
 import com.google.gson.Gson;
 import models.AuthData;
+import models.LoginRequest;
 
 public class ServerFacade {
     private final String baseUrl;
@@ -42,10 +43,21 @@ public class ServerFacade {
     }
 
     public AuthData login(String username, String password) throws IOException, InterruptedException {
-        // Similar to register, but POST to /session with {"username": "...", "password": "..."}
-        // Parse response to AuthData
-        // TODO: Implement
-        return null; // Placeholder
+        String jsonBody = gson.toJson(new LoginRequest(username, password));
+
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(baseUrl + "session"))
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(jsonBody))
+                .build();
+
+        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+
+        if (response.statusCode() == 200) {
+            return gson.fromJson(response.body(), AuthData.class);
+        } else {
+            throw new RuntimeException("Login failed: " + response.body());
+        }
     }
 
     public void logout(String authToken) throws IOException, InterruptedException {
