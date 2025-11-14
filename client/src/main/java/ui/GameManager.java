@@ -116,6 +116,7 @@ public class GameManager {
             renderer.enqueueRenderTasks(renderTasks.toArray(new String[] {}));
 
         } catch (IOException | InterruptedException e) {
+            // Todo: proper error handling
             throw new RuntimeException(e);
         }
     }

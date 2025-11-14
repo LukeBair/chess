@@ -78,7 +78,7 @@ public class ServerFacade {
     public GameListEntry[] listGames(String authToken) throws IOException, InterruptedException {
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(baseUrl + "game"))
-                .header("Authorization", "Bearer " + authToken)
+                .header("Authorization", authToken)
                 .GET()
                 .build();
 
@@ -89,7 +89,7 @@ public class ServerFacade {
                 GameListEntry[] games;
             }
             ListGamesResponse res = gson.fromJson(response.body(), ListGamesResponse.class);
-            return res.games != null ? res.games : new GameListEntry[0];
+            return res != null && res.games != null ? res.games : new GameListEntry[0];
         } else {
             throw new RuntimeException("List games failed: " + response.body());
         }
