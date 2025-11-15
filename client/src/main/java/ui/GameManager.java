@@ -220,25 +220,12 @@ public class GameManager {
         }
     }
 
-    private boolean hasChanged(GameListEntry[] newGames) {
-        Set<Integer> newIds = new HashSet<>();
-        for (GameListEntry g : newGames) {
-            newIds.add(g.gameID());
-        }
-        // Check if IDs differ (new/removed) or length differs
-        return newIds.size() != lastGameIds.size() || !newIds.equals(lastGameIds);
-    }
-
     private void updateLastGameIds() {
         lastGameIds.clear();
         for (GameListEntry g : lastGames) {
             lastGameIds.add(g.gameID());
         }
     }
-
-    // In displayViewGames(), after enqueuing full render, check if needsRefresh but since it's per cycle, add at top of displayViewGames:
-    // if (needsRefresh) { /* re-fetch and re-enqueue list part */ }
-    // But for simplicity, since main loop erases every time, and input is after render, polling sets flag but full refresh happens naturally on next input.
 
     private void displayMainMenu() {
         renderer.enqueueRenderTasks(new String[] {
