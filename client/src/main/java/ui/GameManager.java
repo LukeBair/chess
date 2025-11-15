@@ -7,9 +7,7 @@ import models.AuthData;
 import models.CreateGameResult;
 import models.GameListEntry;
 import models.JoinGameResult;
-import org.jetbrains.annotations.NotNull;
 
-import java.io.IOException;
 import java.util.*;
 
 /*
@@ -32,9 +30,9 @@ public class GameManager {
     private GameState currentState = GameState.MENU;
     private AuthData authData;
     private final BoardRenderer boardRenderer = new BoardRenderer();
-    private ChessGame.TeamColor myColor;  // Track for board view
-    private GameListEntry[] lastGames;  // Track last list for comparison
-    private final Set<Integer> lastGameIds = new HashSet<>();  // For quick change detection
+    private ChessGame.TeamColor myColor;
+    private GameListEntry[] lastGames;
+    private final Set<Integer> lastGameIds = new HashSet<>();
 
     private enum GameState {
         MENU,
@@ -61,8 +59,6 @@ public class GameManager {
     public void update() {
         if (currentState == GameState.QUIT) {
             running = false;
-
-            return;
         } else if (currentState == GameState.MENU) {
             displayMainMenu();
         } else if (currentState == GameState.LOGIN) {
