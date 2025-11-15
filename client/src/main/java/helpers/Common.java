@@ -3,7 +3,7 @@ package helpers;
 import ui.EscapeSequences;
 
 public class Common {
-    public static String GAME_TITLE =
+    public static final String GAME_TITLE =
             "██╗░░░██╗██╗░░░░░████████╗██╗███╗░░░███╗░█████╗░████████╗███████╗  ░█████╗░██╗░░██╗███████╗░██████╗░██████╗\n" +
             "██║░░░██║██║░░░░░╚══██╔══╝██║████╗░████║██╔══██╗╚══██╔══╝██╔════╝  ██╔══██╗██║░░██║██╔════╝██╔════╝██╔════╝\n" +
             "██║░░░██║██║░░░░░░░░██║░░░██║██╔████╔██║███████║░░░██║░░░█████╗░░  ██║░░╚═╝███████║█████╗░░╚█████╗░╚█████╗░\n" +
@@ -11,7 +11,7 @@ public class Common {
             "╚██████╔╝███████╗░░░██║░░░██║██║░╚═╝░██║██║░░██║░░░██║░░░███████╗  ╚█████╔╝██║░░██║███████╗██████╔╝██████╔╝\n" +
             "░╚═════╝░╚══════╝░░░╚═╝░░░╚═╝╚═╝░░░░░╚═╝╚═╝░░╚═╝░░░╚═╝░░░╚══════╝  ░╚════╝░╚═╝░░╚═╝╚══════╝╚═════╝░╚═════╝░";
 
-    public static String ERROR_404 =
+    public static final String ERROR_404 =
             EscapeSequences.SET_TEXT_COLOR_RED +
             "                                                  \n" +
             "                                                  \n" +
@@ -38,6 +38,4 @@ public class Common {
             "                                                  \n" +
             "                                                  " +
             EscapeSequences.RESET_TEXT_COLOR;
-
-    public static String LOGIN_PROMPT = "";
 }

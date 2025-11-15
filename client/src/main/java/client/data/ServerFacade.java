@@ -85,8 +85,7 @@ public class ServerFacade {
         HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
         if (response.statusCode() == 200) {
-           //TODO: return initial game state
-            return gson.fromJson(response.body(), CreateGameResult.class); //res
+            return gson.fromJson(response.body(), CreateGameResult.class);
         } else {
             throw new RuntimeException("Create game failed: " + response.body());
         }

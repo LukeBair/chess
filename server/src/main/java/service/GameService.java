@@ -105,11 +105,7 @@ public class GameService {
                     return new JoinGameResult(null);
                 }
                 case "UNASSIGNED" -> {
-                    // Spectator: Allow if game exists (no slot check for Phase 5; add observer list later)
-                    // TODO: If models.GameData has observers List<String>, add username here
                     return new JoinGameResult(null);  // Success, no update needed
-                    // Spectator: Allow if game exists (no slot check for Phase 5; add observer list later)
-                    // TODO: If models.GameData has observers List<String>, add username here
                 }
                 default -> {
                     return new JoinGameResult("Error: bad request");
