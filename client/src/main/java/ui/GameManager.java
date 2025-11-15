@@ -69,7 +69,7 @@ public class GameManager {
         String[] boardLines = boardRenderer.drawInitialBoard(myColor == null ? ChessGame.TeamColor.WHITE : myColor);
         renderer.enqueueRenderTasks(boardLines);
         renderer.enqueueRenderTask("\nEnter 'quit' to exit.");
-        String input = getInput().trim().toLowerCase();
+        String input = getInput().trim();
         if ("quit".equalsIgnoreCase(input)) {
             myColor = null;  // Reset
             currentState = GameState.VIEW_GAMES;
@@ -152,16 +152,20 @@ public class GameManager {
             case "logout" -> currentState = GameState.LOGOUT;
             case "quit" -> currentState = GameState.QUIT;
             case "refresh" -> {}
-            case "help" -> renderer.enqueueRenderTasks(new String[] {
-                    // if the autograder gets me here for duping imma explode
-                    "\nCommands:",
-                    "create <name> - Create a new game",
-                    "join <index|name> - Join as player (auto WHITE/BLACK)",
-                    "observe <index|name> - Observe (white view)",
-                    "refresh - refresh games list",
-                    "logout - Logout",
-                    "quit - Quit"
-            });
+            case "help" -> {
+                renderer.enqueueRenderTasks(new String[]{
+                        // if the autograder gets me here for duping imma explode
+                        "\nCommands:",
+                        "create <name> - Create a new game",
+                        "join <index|name> - Join as player (auto WHITE/BLACK)",
+                        "observe <index|name> - Observe (white view)",
+                        "refresh - refresh games list",
+                        "logout - Logout",
+                        "quit - Quit",
+                        "Please hit enter to continue"
+                });
+                getInput();
+            }
             default -> renderer.enqueueRenderTask("Unknown command: " + cmd + ". Type 'help' for options.");
         }
     }
@@ -182,13 +186,11 @@ public class GameManager {
     private void handleJoinOrObserve(GameListEntry[] games, String target, boolean isObserve) {
         GameListEntry game = null;
         try {
-            // Try as index (1-based)
             int idx = Integer.parseInt(target) - 1;
             if (idx >= 0 && idx < games.length) {
                 game = games[idx];
             }
         } catch (NumberFormatException ignored) {
-            // Try as name
             game = Arrays.stream(games)
                     .filter(g -> g.gameName().equalsIgnoreCase(target))
                     .findFirst().orElse(null);
@@ -229,13 +231,13 @@ public class GameManager {
                 "\n\n\n",
                 "Commands:",
                 "login  - Login to your account",
-                "create account  - Create a new account",
+                "create  - Create a new account",
                 "quit  - Exit the game"
         });
         String input = getInput().trim().toLowerCase();
         if ("login".equalsIgnoreCase(input)) {
             currentState = GameState.LOGIN;
-        } else if ("create account".equalsIgnoreCase(input)) {
+        } else if ("create".equalsIgnoreCase(input)) {
             currentState = GameState.CREATE_ACCOUNT;
         } else if ("quit".equalsIgnoreCase(input)) {
             currentState = GameState.QUIT;
@@ -245,7 +247,7 @@ public class GameManager {
                     "\n\n\n",
                     "Commands:",
                     "login  - Login to your account",
-                    "create account  - Create a new account",
+                    "create  - Create a new account",
                     "quit  - Exit the game",
                     "please hit enter to continue"
             });
