@@ -5,10 +5,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.net.URI;
-import java.rmi.ServerException;
-import java.util.Map;
 
-import chess.ChessGame;
 import com.google.gson.Gson;
 import models.*;
 
@@ -35,7 +32,7 @@ public class ServerFacade {
         HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
         if (response.statusCode() == 200) {
-            // Parse success response into AuthData
+            // Parse success response into models.AuthData
             return gson.fromJson(response.body(), AuthData.class);
         } else {
             // Handle error (e.g., throw custom exception or return null)
@@ -88,7 +85,7 @@ public class ServerFacade {
         HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
         if (response.statusCode() == 200) {
-           //TODO: return intial game state
+           //TODO: return initial game state
             return gson.fromJson(response.body(), CreateGameResult.class); //res
         } else {
             throw new RuntimeException("Create game failed: " + response.body());

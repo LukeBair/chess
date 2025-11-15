@@ -1,5 +1,3 @@
-import chess.*;
-import client.data.ServerFacade;
 import ui.GameManager;
 
 public class Main {
