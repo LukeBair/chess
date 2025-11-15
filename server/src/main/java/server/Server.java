@@ -60,7 +60,7 @@ public class Server {
         javalin.post("/game", this::createGame);
         javalin.put("/game", this::joinGame);
         javalin.delete("/db", this::clear);
-        javalin.get("/test", ctx -> ctx.result("Server is running"));
+        javalin.get("/test", this::clear);
     }
 
     private void sendErrorResponse(@NotNull Context ctx, int status, String message) {

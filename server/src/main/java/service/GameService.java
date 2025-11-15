@@ -44,14 +44,20 @@ public class GameService {
             if (authData == null) {
                 return new CreateGameResult(-1, "Error: unauthorized");
             }
-            if (request.gameName() == null || request.gameName().trim().isEmpty()) {
+            String gameName = request.gameName();
+            if (gameName == null || gameName.trim().isEmpty()) {  // Enforce min length
                 return new CreateGameResult(-1, "Error: bad request");
             }
 
-            // Generate a random positive integer ID
-            int id = new java.util.Random().nextInt(Integer.MAX_VALUE) + 1;
+            // Safer ID: UUID hash (positive int, low collision risk)
+            int id = Math.abs(UUID.randomUUID().hashCode());
 
-            GameData game = new GameData(id, null, null, request.gameName(), new ChessGame());
+            // Check for collision (rare, but retry if needed)
+            while (dao.getGame(id) != null) {
+                id = Math.abs(UUID.randomUUID().hashCode());
+            }
+
+            GameData game = new GameData(id, null, null, gameName.trim(), new ChessGame());
             dao.createGame(game);
             return new CreateGameResult(id, null);
         } catch (DataAccessException e) {
@@ -68,31 +74,47 @@ public class GameService {
             if (authData == null) {
                 return new JoinGameResult("Error: unauthorized");
             }
-            if (request.gameID() == null || request.playerColor() == null ||
-                    (!request.playerColor().equalsIgnoreCase("WHITE") && !request.playerColor().equalsIgnoreCase("BLACK"))) {
+            Integer gameID = request.gameID();
+            String playerColor = request.playerColor();
+            if (gameID == null || gameID <= 0 || playerColor == null || playerColor.trim().isEmpty()) {
                 return new JoinGameResult("Error: bad request");
             }
-            GameData game = dao.getGame(request.gameID());
+            GameData game = dao.getGame(gameID);
             if (game == null) {
                 return new JoinGameResult("Error: bad request");
             }
+
             String username = authData.username();
-            GameData updatedGame = null;
-            if (request.playerColor().equalsIgnoreCase("WHITE")) {
-                if (game.whiteUsername() != null) {
-                    return new JoinGameResult("Error: already taken");
+            String colorUpper = playerColor.trim().toUpperCase();
+
+            switch (colorUpper) {
+                case "WHITE" -> {
+                    if (game.whiteUsername() != null) {
+                        return new JoinGameResult("Error: already taken");
+                    }
+                    GameData updatedGame = new GameData(game.gameID(), username, game.blackUsername(), game.gameName(), game.game());
+                    dao.updateGame(updatedGame);
+                    return new JoinGameResult(null);
                 }
-                updatedGame = new GameData(game.gameID(), username, game.blackUsername(), game.gameName(), game.game());
-            } else if (request.playerColor().equalsIgnoreCase("BLACK")) {
-                if (game.blackUsername() != null) {
-                    return new JoinGameResult("Error: already taken");
+                case "BLACK" -> {
+                    if (game.blackUsername() != null) {
+                        return new JoinGameResult("Error: already taken");
+                    }
+                    GameData updatedGame = new GameData(game.gameID(), game.whiteUsername(), username, game.gameName(), game.game());
+                    dao.updateGame(updatedGame);
+                    return new JoinGameResult(null);
                 }
-                updatedGame = new GameData(game.gameID(), game.whiteUsername(), username, game.gameName(), game.game());
+                case "UNASSIGNED" -> {
+                    // Spectator: Allow if game exists (no slot check for Phase 5; add observer list later)
+                    // TODO: If GameData has observers List<String>, add username here
+                    return new JoinGameResult(null);  // Success, no update needed
+                    // Spectator: Allow if game exists (no slot check for Phase 5; add observer list later)
+                    // TODO: If GameData has observers List<String>, add username here
+                }
+                default -> {
+                    return new JoinGameResult("Error: bad request");
+                }
             }
-            if (updatedGame != null) {
-                dao.updateGame(updatedGame);
-            }
-            return new JoinGameResult(null);
         } catch (DataAccessException e) {
             return new JoinGameResult("Error: " + e.getMessage());
         }
