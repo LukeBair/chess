@@ -120,18 +120,18 @@ public class GameManager {
             renderer.enqueueRenderTasks(renderTasks.toArray(new String[0]));
 
             String input = getInput().trim();
-            if (input.isEmpty()) return;
+            if (input.isEmpty()) { return; }
 
             parseViewGamesCommand(input.toLowerCase());
         } catch (Exception e) {
             renderer.enqueueRenderTask("Error listing games: " + e.getMessage());
-            String _input = getInput();  // Wait for ack
+            getInput();  // Wait for ack
         }
     }
 
     private void parseViewGamesCommand(String input) {
         String[] parts = input.split("\\s+", 3);  // Max 3 parts: command arg1 arg2 (if needed)
-        if (parts.length < 1) return;
+        if (parts.length < 1) { return; }
 
         String cmd = parts[0];
         switch (cmd) {
