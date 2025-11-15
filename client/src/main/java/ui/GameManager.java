@@ -73,7 +73,7 @@ public class GameManager {
         if ("quit".equalsIgnoreCase(input)) {
             myColor = null;  // Reset
             currentState = GameState.VIEW_GAMES;
-        } else if("login".equalsIgnoreCase(input)) { //neat didnt think this would work
+        } else if("help".equalsIgnoreCase(input)) { //neat didnt think this would work
             renderer.enqueueRenderTask("Work in progress! Type \"exit\" to exit.\nHit enter to continue");
             getInput();
         }
