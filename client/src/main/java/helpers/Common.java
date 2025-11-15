@@ -1,4 +1,6 @@
-package ui;
+package helpers;
+
+import ui.EscapeSequences;
 
 public class Common {
     public static String GAME_TITLE =
