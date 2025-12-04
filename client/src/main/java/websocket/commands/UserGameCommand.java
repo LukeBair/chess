@@ -33,6 +33,21 @@ public class UserGameCommand {
         return commandType;
     }
 
+    public void getCommand() {
+        switch  (commandType) {
+            case CONNECT:
+                break;
+            case MAKE_MOVE:
+                break;
+            case LEAVE:
+                break;
+            case RESIGN:
+                break;
+            default:
+                break;
+        }
+    }
+
     public String getAuthToken() {
         return authToken;
     }

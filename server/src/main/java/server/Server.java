@@ -61,6 +61,20 @@ public class Server {
         javalin.put("/game", this::joinGame);
         javalin.delete("/db", this::clear);
         javalin.get("/test", this::clear);
+        javalin.ws("/ws", wsConfig -> {
+            wsConfig.onConnect(ctx -> {
+                System.out.println("new WS connection");
+            });
+
+            wsConfig.onMessage(ctx -> {
+                String message = ctx.message();
+                System.out.println("WS message: " + message);
+            });
+
+            wsConfig.onError(ctx -> {
+                System.out.println("WS connection error: " + ctx.error());
+            });
+        });
     }
 
     private void sendErrorResponse(@NotNull Context ctx, int status, String message) {
