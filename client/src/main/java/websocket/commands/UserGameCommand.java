@@ -1,5 +1,9 @@
 package websocket.commands;
 
+import chess.ChessMove;
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
+
 import java.util.Objects;
 
 /**
@@ -33,27 +37,39 @@ public class UserGameCommand {
         return commandType;
     }
 
-    public void getCommand() {
-        switch  (commandType) {
-            case CONNECT:
-                break;
-            case MAKE_MOVE:
-                break;
-            case LEAVE:
-                break;
-            case RESIGN:
-                break;
-            default:
-                break;
-        }
-    }
-
     public String getAuthToken() {
         return authToken;
     }
 
     public Integer getGameID() {
         return gameID;
+    }
+
+    public String toJson() {
+        Gson gson = new Gson();
+        return gson.toJson(this);
+    }
+
+    public static UserGameCommand fromJson(String json) {
+        Gson gson = new Gson();
+        JsonObject jsonObject = gson.fromJson(json, JsonObject.class);
+        CommandType commandType = gson.fromJson(jsonObject.get("commandType"), CommandType.class);
+        Integer gameID = jsonObject.get("gameID").getAsInt();
+        String authToken = jsonObject.get("authToken").getAsString();
+
+        switch  (commandType) {
+            case CONNECT:
+                return new ConnectCommand(authToken, gameID);
+            case  MAKE_MOVE:
+                ChessMove chessMove = gson.fromJson(jsonObject.get("chessMove"), ChessMove.class);
+                return new MakeMoveCommand(authToken, gameID, chessMove);
+            case  LEAVE:
+                return new LeaveCommand(authToken, gameID);
+            case  RESIGN:
+                return new ResignCommand(authToken, gameID);
+            default:
+                return null;
+        }
     }
 
     @Override

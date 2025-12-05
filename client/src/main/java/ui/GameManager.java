@@ -6,7 +6,14 @@ import models.AuthData;
 import models.CreateGameResult;
 import models.GameListEntry;
 import models.JoinGameResult;
+import org.eclipse.jetty.websocket.api.Session;
+import org.eclipse.jetty.websocket.api.WebSocketListener;
+import org.eclipse.jetty.websocket.api.annotations.OnWebSocketClose;
+import org.eclipse.jetty.websocket.api.annotations.OnWebSocketConnect;
+import org.eclipse.jetty.websocket.core.internal.WebSocketConnection;
+import websocket.commands.ConnectCommand;
 
+import java.io.IOException;
 import java.util.*;
 
 /*
@@ -24,6 +31,11 @@ public class GameManager {
     private AuthData authData;
     private final BoardRenderer boardRenderer = new BoardRenderer();
     private ChessGame.TeamColor myColor;
+
+
+    private WebSocketConnection wsClient;
+    private ChessGame currentGame;
+    private boolean isPlayer;
 
     private enum GameState {
         MENU,
@@ -212,14 +224,17 @@ public class GameManager {
             }
             if (isObserve) {
                 server.observeGame(game.gameID(), authData.authToken());
-                myColor = ChessGame.TeamColor.WHITE;  // Spectator view
+                myColor = ChessGame.TeamColor.WHITE;  // Spectator view (scuffed)
                 currentState = GameState.OBSERVING;
+                isPlayer = false;
             } else {
                 JoinGameResult res = server.joinGame(game.gameID(), playerColor, authData.authToken());
                 myColor = "WHITE".equals(playerColor) ? ChessGame.TeamColor.WHITE : ChessGame.TeamColor.BLACK;
                 currentState = GameState.PLAYING;
+                isPlayer = true;
             }
             renderer.enqueueRenderTask(isObserve ? "Observing game." : "Joined as " + playerColor + ".");
+
         } catch (Exception e) {
             renderer.enqueueRenderTask((isObserve ? "Observe" : "Join") + " failed: " + e.getMessage());
         }
@@ -314,4 +329,6 @@ public class GameManager {
     public String getInput() {
         return scanner.nextLine();
     }
+
+
 }
