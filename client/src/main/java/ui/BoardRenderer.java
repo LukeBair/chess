@@ -5,11 +5,11 @@ import chess.ChessPiece;
 import chess.ChessPosition;
 
 public class BoardRenderer {
-    private static final String LIGHT_SQUARE = EscapeSequences.SET_BG_COLOR_WHITE;
-    private static final String DARK_SQUARE = EscapeSequences.SET_BG_COLOR_DARK_GREY;
+    private static final String LIGHT_SQUARE = EscapeSequences.SET_BG_COLOR_LIGHT_GREY;  // Tan
+    private static final String DARK_SQUARE = EscapeSequences.SET_BG_COLOR_GREEN;        // Green
     private static final String RESET_BG = EscapeSequences.RESET_BG_COLOR;
-    private static final String WHITE_PIECE = EscapeSequences.SET_TEXT_COLOR_RED;  // Red for white
-    private static final String BLACK_PIECE = EscapeSequences.SET_TEXT_COLOR_BLUE; // Blue for black
+    private static final String WHITE_PIECE = EscapeSequences.SET_TEXT_COLOR_WHITE;      // White pieces
+    private static final String BLACK_PIECE = EscapeSequences.SET_TEXT_COLOR_BLACK;      // Black pieces
     private static final String RESET_TEXT = EscapeSequences.RESET_TEXT_COLOR;
 
     public String[] drawInitialBoard(ChessGame.TeamColor viewAs) {
@@ -19,7 +19,7 @@ public class BoardRenderer {
 
         // Top border (files a-h)
         String topFiles = viewAs == ChessGame.TeamColor.BLACK ? "  h  g  f  e  d  c  b  a  " : "  a  b  c  d  e  f  g  h  ";
-        lines[0] = EscapeSequences.SET_TEXT_COLOR_GREEN + topFiles + RESET_TEXT;
+        lines[0] = EscapeSequences.SET_TEXT_COLOR_MAGENTA + topFiles + RESET_TEXT;
 
         // Board rows
         int startRow = viewAs == ChessGame.TeamColor.BLACK ? 1 : 8;
@@ -28,7 +28,7 @@ public class BoardRenderer {
         int lineIdx = 1;
 
         for (int row = startRow; row != endRow; row += rowStep) {
-            StringBuilder rowLine = new StringBuilder(EscapeSequences.SET_TEXT_COLOR_YELLOW + row + " " + RESET_TEXT);
+            StringBuilder rowLine = new StringBuilder(EscapeSequences.SET_TEXT_COLOR_MAGENTA + row + " " + RESET_TEXT);
 
             // Column iteration (also needs to reverse for black view)
             int startCol = viewAs == ChessGame.TeamColor.BLACK ? 8 : 1;
@@ -50,13 +50,13 @@ public class BoardRenderer {
                     rowLine.append(bg).append("   ").append(RESET_BG);
                 }
             }
-            rowLine.append(" ").append(EscapeSequences.SET_TEXT_COLOR_YELLOW).append(row).append(RESET_TEXT);
+            rowLine.append(" ").append(EscapeSequences.SET_TEXT_COLOR_MAGENTA).append(row).append(RESET_TEXT);
             lines[lineIdx++] = rowLine.toString();
         }
 
         // Bottom border (files a-h)
         String bottomFiles = viewAs == ChessGame.TeamColor.BLACK ? "  h  g  f  e  d  c  b  a  " : "  a  b  c  d  e  f  g  h  ";
-        lines[lineIdx] = EscapeSequences.SET_TEXT_COLOR_GREEN + bottomFiles + RESET_TEXT;
+        lines[lineIdx] = EscapeSequences.SET_TEXT_COLOR_MAGENTA + bottomFiles + RESET_TEXT;
 
         // Pad empty lines
         for (int i = lineIdx + 1; i < lines.length; i++) {

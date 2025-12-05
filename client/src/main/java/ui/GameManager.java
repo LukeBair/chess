@@ -5,8 +5,7 @@ import helpers.Common;
 import models.AuthData;
 import models.CreateGameResult;
 import models.GameListEntry;
-import models.JoinGameResult;
-import websocket.WebSocketManager;
+import websocket.WebSocketFacade;
 
 import java.util.*;
 
@@ -26,7 +25,8 @@ public class GameManager {
     private final BoardRenderer boardRenderer = new BoardRenderer();
     private ChessGame.TeamColor myColor;
 
-    private WebSocketManager webSocketManager;
+    private WebSocketFacade webSocketFacade = new WebSocketFacade(renderer);
+    private String username;
 
     private enum GameState {
         MENU,
@@ -216,10 +216,13 @@ public class GameManager {
             }
 
             var res = server.joinGame(game.gameID(), playerColor, authData.authToken());
-            // WARNING: what if this fails ^
-            webSocketManager = new WebSocketManager(game, authData.authToken(), !isObserve, renderer);
+            webSocketFacade.loadGame(username, (playerColor.equals("UNASSIGNED") ? "an observer" : playerColor), game.gameID()); // ADD gameID here
 
-            //
+            if (isObserve) {
+                currentState = GameState.OBSERVING;
+            } else {
+                currentState = GameState.PLAYING;
+            }
 
         } catch (Exception e) {
             renderer.enqueueRenderTask((isObserve ? "Observe" : "Join") + " failed: " + e.getMessage());
@@ -263,7 +266,7 @@ public class GameManager {
                 "\n\n\n",
                 "Enter username:"
         });
-        String username = getInput().trim();
+        username = getInput().trim();
 
         renderer.enqueueRenderTasks(new String[] {
                 "Enter password:"
@@ -293,7 +296,7 @@ public class GameManager {
                 "\n\n\n",
                 "Enter username:"
         });
-        String username = getInput().trim();
+        username = getInput().trim();
 
         renderer.enqueueRenderTasks(new String[] {
                 "Enter password:"

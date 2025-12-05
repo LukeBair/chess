@@ -9,10 +9,12 @@ import io.javalin.Javalin;
 import io.javalin.http.Context;
 import models.*;
 import org.jetbrains.annotations.NotNull;
+import server.websocket.WebSocketManager;
 import service.ClearService;
 import service.GameService;
 import service.UserService;
 
+import java.time.Duration;
 import java.util.Map;
 
 public class Server {
@@ -22,6 +24,7 @@ public class Server {
     private final GameService gameService;
     private final UserService userService;
     private final ClearService clearService;
+    private final WebSocketManager webSocketHandler;
 
     private final Gson gson;
 
@@ -38,11 +41,14 @@ public class Server {
         this.userService = new UserService(sqlDataAccess);
         this.gameService = new GameService(sqlDataAccess);
         this.clearService = new ClearService(sqlDataAccess);
-
+        this.webSocketHandler = new WebSocketManager();
         this.gson = new Gson();
 
         javalin = Javalin.create(config -> {
             config.staticFiles.add("web");
+            config.jetty.modifyWebSocketServletFactory(factory -> {
+                factory.setIdleTimeout(Duration.ofMinutes(10));
+            });
         });
 
         javalin.exception(Exception.class, (e, ctx) -> {
@@ -62,18 +68,9 @@ public class Server {
         javalin.delete("/db", this::clear);
         javalin.get("/test", this::clear);
         javalin.ws("/ws", wsConfig -> {
-            wsConfig.onConnect(ctx -> {
-                System.out.println("new WS connection");
-            });
-
-            wsConfig.onMessage(ctx -> {
-                String message = ctx.message();
-                System.out.println("WS message: " + message);
-            });
-
-            wsConfig.onError(ctx -> {
-                System.out.println("WS connection error: " + ctx.error());
-            });
+            wsConfig.onConnect(webSocketHandler);
+            wsConfig.onClose(webSocketHandler);
+            wsConfig.onMessage(webSocketHandler);
         });
     }
 
