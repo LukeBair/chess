@@ -6,14 +6,8 @@ import models.AuthData;
 import models.CreateGameResult;
 import models.GameListEntry;
 import models.JoinGameResult;
-import org.eclipse.jetty.websocket.api.Session;
-import org.eclipse.jetty.websocket.api.WebSocketListener;
-import org.eclipse.jetty.websocket.api.annotations.OnWebSocketClose;
-import org.eclipse.jetty.websocket.api.annotations.OnWebSocketConnect;
-import org.eclipse.jetty.websocket.core.internal.WebSocketConnection;
-import websocket.commands.ConnectCommand;
+import websocket.WebSocketManager;
 
-import java.io.IOException;
 import java.util.*;
 
 /*
@@ -32,10 +26,7 @@ public class GameManager {
     private final BoardRenderer boardRenderer = new BoardRenderer();
     private ChessGame.TeamColor myColor;
 
-
-    private WebSocketConnection wsClient;
-    private ChessGame currentGame;
-    private boolean isPlayer;
+    private WebSocketManager webSocketManager;
 
     private enum GameState {
         MENU,
@@ -202,7 +193,8 @@ public class GameManager {
             if (idx >= 0 && idx < games.length) {
                 game = games[idx];
             }
-        } catch (NumberFormatException ignored) {
+        }
+        catch (NumberFormatException ignored) {
             game = Arrays.stream(games)
                     .filter(g -> g.gameName().equalsIgnoreCase(target))
                     .findFirst().orElse(null);
@@ -222,18 +214,12 @@ public class GameManager {
                 getInput();
                 return;
             }
-            if (isObserve) {
-                server.observeGame(game.gameID(), authData.authToken());
-                myColor = ChessGame.TeamColor.WHITE;  // Spectator view (scuffed)
-                currentState = GameState.OBSERVING;
-                isPlayer = false;
-            } else {
-                JoinGameResult res = server.joinGame(game.gameID(), playerColor, authData.authToken());
-                myColor = "WHITE".equals(playerColor) ? ChessGame.TeamColor.WHITE : ChessGame.TeamColor.BLACK;
-                currentState = GameState.PLAYING;
-                isPlayer = true;
-            }
-            renderer.enqueueRenderTask(isObserve ? "Observing game." : "Joined as " + playerColor + ".");
+
+            var res = server.joinGame(game.gameID(), playerColor, authData.authToken());
+            // WARNING: what if this fails ^
+            webSocketManager = new WebSocketManager(game, authData.authToken(), !isObserve, renderer);
+
+            //
 
         } catch (Exception e) {
             renderer.enqueueRenderTask((isObserve ? "Observe" : "Join") + " failed: " + e.getMessage());
