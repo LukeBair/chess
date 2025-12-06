@@ -153,9 +153,9 @@ public class GameService {
 
         // Determine which color the user is playing
         ChessGame.TeamColor playerColor = null;
-        if (game.whiteUsername() != null && username.equals(game.whiteUsername())) {
+        if (game.whiteUsername() != null && game.whiteUsername().equals(username)) {
             playerColor = ChessGame.TeamColor.WHITE;
-        } else if (game.blackUsername() != null && username.equals(game.blackUsername())) {
+        } else if (game.blackUsername() != null && game.blackUsername().equals(username)) {
             playerColor = ChessGame.TeamColor.BLACK;
         } else {
             throw new InvalidMoveException("You are not a player in this game");
@@ -169,8 +169,14 @@ public class GameService {
         // Make the move (this will throw InvalidMoveException if invalid)
         chessGame.makeMove(move);
 
-        // Update game in database
-        GameData updatedGame = new GameData(game.gameID(), game.whiteUsername(), game.blackUsername(), game.gameName(), chessGame);
+        // Update game in database with the MODIFIED chessGame object
+        GameData updatedGame = new GameData(
+                game.gameID(),
+                game.whiteUsername(),
+                game.blackUsername(),
+                game.gameName(),
+                chessGame  // This now has the updated board state
+        );
         dao.updateGame(updatedGame);
 
         return updatedGame;
@@ -188,9 +194,9 @@ public class GameService {
         String newWhite = game.whiteUsername();
         String newBlack = game.blackUsername();
 
-        if (game.whiteUsername() != null && username.equals(game.whiteUsername())) {
+        if (game.whiteUsername() != null && game.whiteUsername().equals(username)) {
             newWhite = null;
-        } else if (game.blackUsername() != null && username.equals(game.blackUsername())) {
+        } else if (game.blackUsername() != null && game.blackUsername().equals(username)) {
             newBlack = null;
         }
         // If observer, no change to game data needed
@@ -209,8 +215,10 @@ public class GameService {
         }
 
         // Check if user is a player (not observer)
-        if (game.whiteUsername() != null && (!username.equals(game.whiteUsername())) &&
-           (game.blackUsername() != null && !username.equals(game.blackUsername()))) {
+        boolean isWhitePlayer = game.whiteUsername() != null && game.whiteUsername().equals(username);
+        boolean isBlackPlayer = game.blackUsername() != null && game.blackUsername().equals(username);
+
+        if (!isWhitePlayer && !isBlackPlayer) {
             throw new InvalidMoveException("Observers cannot resign");
         }
 
@@ -230,8 +238,21 @@ public class GameService {
     }
 
     public void endGame(int gameID) throws DataAccessException {
-        var game = dao.getGame(gameID);
-        game.game().setGameOver(true);
-        dao.updateGame(game);
+        GameData game = dao.getGame(gameID);
+        if (game == null) {
+            throw new DataAccessException("Game not found");
+        }
+
+        ChessGame chessGame = game.game();
+        chessGame.setGameOver(true);
+
+        GameData updatedGame = new GameData(
+                game.gameID(),
+                game.whiteUsername(),
+                game.blackUsername(),
+                game.gameName(),
+                chessGame
+        );
+        dao.updateGame(updatedGame);
     }
 }
