@@ -51,7 +51,23 @@ public class WebSocketFacade extends Endpoint {
             switch (serverMessage.getServerMessageType()) {
                 case NOTIFICATION -> {
                     NotificationMessage notif = gson.fromJson(message, NotificationMessage.class);
-                    renderer.enqueueRenderTask("\n[NOTIFICATION] " + notif.getMessage());
+                    String msg = notif.getMessage();
+
+                    renderer.enqueueRenderTask("\n[NOTIFICATION] " + msg);
+
+                    // Detect game-ending messages
+                    if (msg.toLowerCase().contains("resigned") ||
+                            msg.toLowerCase().contains("checkmate") ||
+                            msg.toLowerCase().contains("stalemate")) {
+
+                        gameManager.setGameOver(msg.contains("resigned")
+                                ? msg
+                                : "Game Over - " + (msg.contains("Checkmate") ?
+                                (msg.contains("Black wins") ? "Black wins!" : "White wins!")
+                                : "Draw by stalemate!"));
+
+                        renderer.enqueueRenderTask("\nType 'leave' to return to game list.");
+                    }
                 }
                 case ERROR -> {
                     ErrorMessage error = gson.fromJson(message, ErrorMessage.class);
@@ -62,23 +78,10 @@ public class WebSocketFacade extends Endpoint {
                     ChessGame game = loadGame.getGame();
 
                     if (game != null) {
-                        // Update the game in GameManager
+                        // Update the game in GameManager and trigger automatic redraw
                         gameManager.updateGame(game);
-                        renderer.enqueueRenderTask("\n[Game board updated]");
                     } else {
                         renderer.enqueueRenderTask("\n[ERROR] Received LOAD_GAME with null game");
-                    }
-                }
-                case MOVE -> {
-                    MakeMoveMessage moveMsg = gson.fromJson(message, MakeMoveMessage.class);
-                    ChessGame game = moveMsg.getGame();
-
-                    if (game != null) {
-                        // Update the game in GameManager
-                        gameManager.updateGame(game);
-                        renderer.enqueueRenderTask("\n[Move executed - board updated]");
-                    } else {
-                        renderer.enqueueRenderTask("\n[ERROR] Received MAKE_MOVE with null game");
                     }
                 }
             }

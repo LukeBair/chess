@@ -228,4 +228,10 @@ public class GameService {
         GameData updatedGame = new GameData(game.gameID(), game.whiteUsername(), game.blackUsername(), game.gameName(), chessGame);
         dao.updateGame(updatedGame);
     }
+
+    public void endGame(int gameID) throws DataAccessException {
+        var game = dao.getGame(gameID);
+        game.game().setGameOver(true);
+        dao.updateGame(game);
+    }
 }

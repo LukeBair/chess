@@ -18,14 +18,6 @@ public class ChessGame {
     private ArrayList<ChessPosition> whitePiecesPositions = new ArrayList<>();
     private boolean gameOver = false;
 
-    public boolean isGameOver() {
-        return gameOver;
-    }
-
-    public void setGameOver(boolean gameOver) {
-        this.gameOver = gameOver;
-    }
-
     public ChessGame() {
         for (int i = 1; i <= 8; i++) {
             whitePiecesPositions.add(new ChessPosition(2, i));
@@ -288,5 +280,13 @@ public class ChessGame {
     @Override
     public int hashCode() {
         return Objects.hash(currentTeam, chessBoard);
+    }
+
+    public boolean isGameOver() {
+        return gameOver;
+    }
+
+    public void setGameOver(boolean gameOver) {
+        this.gameOver = gameOver;
     }
 }

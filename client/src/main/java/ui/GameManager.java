@@ -3,6 +3,7 @@ package ui;
 import chess.ChessBoard;
 import chess.ChessGame;
 import chess.ChessMove;
+import chess.ChessPiece;
 import chess.ChessPosition;
 import client.data.ServerFacade;
 import helpers.Common;
@@ -28,6 +29,10 @@ public class GameManager {
 
     private WebSocketFacade webSocketFacade;
     private String username;
+    private ChessPosition lastHighlightedPosition = null;
+
+    private boolean isGameOver = false;
+    private String gameOverMessage = null;
 
     private enum GameState {
         MENU,
@@ -73,10 +78,55 @@ public class GameManager {
     // Called by WebSocketFacade when LOAD_GAME message is received
     public void updateGame(ChessGame game) {
         this.currentGame = game;
-        redrawBoard();
+
+        // Automatically redraw board with highlight preservation
+        redrawBoardWithHighlight();
+
+        // Show the gameplay help menu so user can immediately make a move
+        displayGameplayHelp();
+    }
+
+    private void redrawBoardWithHighlight() {
+        if (currentGame == null) {
+            renderer.enqueueRenderTask("No game loaded yet.");
+            return;
+        }
+
+        Set<ChessPosition> highlights = null;
+
+        // Re-apply highlight if one was active
+        if (lastHighlightedPosition != null) {
+            var validMoves = currentGame.validMoves(lastHighlightedPosition);
+            if (validMoves != null && !validMoves.isEmpty()) {
+                highlights = new HashSet<>();
+                highlights.add(lastHighlightedPosition);
+                for (ChessMove m : validMoves) {
+                    highlights.add(m.getEndPosition());
+                }
+            } else {
+                // Piece moved or captured - clear highlight
+                lastHighlightedPosition = null;
+            }
+        }
+
+        String[] boardLines = boardRenderer.drawBoard(
+                currentGame.getBoard(),
+                myColor == null ? ChessGame.TeamColor.WHITE : myColor,
+                highlights
+        );
+        renderer.enqueueRenderTasks(boardLines);
+    }
+
+    private String formatPosition(ChessPosition pos) {
+        return "" + (char)('a' + pos.getColumn() - 1) + pos.getRow();
     }
 
     private void handleMove(String fromStr, String toStr) {
+        if (isGameOver) {
+            renderer.enqueueRenderTask("Game is over. Type 'leave' to exit.");
+            return;
+        }
+
         if (currentState == GameState.OBSERVING) {
             renderer.enqueueRenderTask("Observers cannot make moves.");
             return;
@@ -91,12 +141,37 @@ public class GameManager {
                 return;
             }
 
-            // Check for promotion (if pawn reaches end rank)
-            ChessMove move = new ChessMove(from, to, null);
+            // Check for pawn promotion
+            ChessPiece piece = currentGame.getBoard().getPiece(from);
+            ChessPiece.PieceType promotionPiece = null;
 
-            // TODO: Check if this is a pawn promotion and prompt for piece type
+            if (piece != null && piece.getPieceType() == ChessPiece.PieceType.PAWN) {
+                int endRow = to.getRow();
+                // White pawn reaches row 8, black pawn reaches row 1
+                if ((piece.getTeamColor() == ChessGame.TeamColor.WHITE && endRow == 8) ||
+                        (piece.getTeamColor() == ChessGame.TeamColor.BLACK && endRow == 1)) {
 
+                    renderer.enqueueRenderTask("Pawn promotion! Choose piece (QUEEN/ROOK/BISHOP/KNIGHT):");
+                    String promoInput = getInput().trim().toUpperCase();
+
+                    promotionPiece = switch (promoInput) {
+                        case "QUEEN", "Q" -> ChessPiece.PieceType.QUEEN;
+                        case "ROOK", "R" -> ChessPiece.PieceType.ROOK;
+                        case "BISHOP", "B" -> ChessPiece.PieceType.BISHOP;
+                        case "KNIGHT", "N", "K" -> ChessPiece.PieceType.KNIGHT;
+                        default -> {
+                            renderer.enqueueRenderTask("Invalid piece. Defaulting to QUEEN.");
+                            yield ChessPiece.PieceType.QUEEN;
+                        }
+                    };
+                }
+            }
+
+            ChessMove move = new ChessMove(from, to, promotionPiece);
             webSocketFacade.makeMove(authData.authToken(), currentGameID, move);
+
+            // Clear highlight after making a move
+            lastHighlightedPosition = null;
 
         } catch (Exception e) {
             renderer.enqueueRenderTask("Error making move: " + e.getMessage());
@@ -116,7 +191,6 @@ public class GameManager {
                 return;
             }
 
-            // Get valid moves for the piece at this position
             var validMoves = currentGame.validMoves(pos);
 
             if (validMoves == null || validMoves.isEmpty()) {
@@ -124,22 +198,24 @@ public class GameManager {
                 return;
             }
 
-            // Collect all end positions for highlighting
+            lastHighlightedPosition = pos;
+
             Set<ChessPosition> highlightPositions = new HashSet<>();
-            highlightPositions.add(pos);  // Highlight the piece itself
+            highlightPositions.add(pos);
             for (ChessMove move : validMoves) {
                 highlightPositions.add(move.getEndPosition());
             }
 
-            // Draw board with highlights
             String[] boardLines = boardRenderer.drawBoard(
                     currentGame.getBoard(),
                     myColor == null ? ChessGame.TeamColor.WHITE : myColor,
                     highlightPositions
             );
             renderer.enqueueRenderTasks(boardLines);
-            renderer.enqueueRenderTask("Showing legal moves for piece at " + posStr);
-            getInput();
+            renderer.enqueueRenderTask("Showing legal moves for piece at " + posStr + ".");
+
+            // Show gameplay help so user can immediately make a move
+            displayGameplayHelp();
 
         } catch (Exception e) {
             renderer.enqueueRenderTask("Error highlighting moves: " + e.getMessage());
@@ -152,6 +228,9 @@ public class GameManager {
             currentGame = null;
             currentGameID = 0;
             myColor = null;
+            lastHighlightedPosition = null;
+            isGameOver = false;
+            gameOverMessage = null;
             currentState = GameState.VIEW_GAMES;
         } catch (Exception e) {
             renderer.enqueueRenderTask("Error leaving game: " + e.getMessage());
@@ -164,13 +243,29 @@ public class GameManager {
             return;
         }
 
-        renderer.enqueueRenderTask("Are you sure you want to resign? (yes/no)");
+        if (isGameOver) {
+            renderer.enqueueRenderTask("Game is already over.");
+            return;
+        }
+
+        // Require confirmation
+        renderer.enqueueRenderTask(EscapeSequences.SET_TEXT_COLOR_RED +
+                "Are you sure you want to resign? This will end the game. (yes/no)" +
+                EscapeSequences.RESET_TEXT_COLOR);
         String confirm = getInput().trim().toLowerCase();
 
         if (confirm.equals("yes") || confirm.equals("y")) {
             try {
                 webSocketFacade.resign(authData.authToken(), currentGameID);
-                renderer.enqueueRenderTask("You have resigned from the game.");
+
+                // Determine winner
+                String winner = myColor == ChessGame.TeamColor.WHITE ? "Black" : "White";
+                gameOverMessage = "Game Over - " + winner + " wins by resignation!";
+                isGameOver = true;
+
+                renderer.enqueueRenderTask(gameOverMessage);
+                renderer.enqueueRenderTask("Type 'leave' to return to game list.");
+
             } catch (Exception e) {
                 renderer.enqueueRenderTask("Error resigning: " + e.getMessage());
             }
@@ -443,7 +538,7 @@ public class GameManager {
             return;
         }
 
-        redrawBoard();
+        redrawBoardWithHighlight();
         displayGameplayHelp();
 
         String input = getInput().trim().toLowerCase();
@@ -452,19 +547,6 @@ public class GameManager {
         }
 
         parseGameplayCommand(input);
-    }
-
-    private void redrawBoard() {
-        if (currentGame == null) {
-            renderer.enqueueRenderTask("No game loaded yet.");
-            return;
-        }
-        String[] boardLines = boardRenderer.drawBoard(
-                currentGame.getBoard(),
-                myColor == null ? ChessGame.TeamColor.WHITE : myColor,
-                null  // No highlights
-        );
-        renderer.enqueueRenderTasks(boardLines);
     }
 
     private void displayGameplayHelp() {
@@ -476,15 +558,17 @@ public class GameManager {
         String status = "";
         if (currentGame.isInCheckmate(ChessGame.TeamColor.WHITE)) {
             status = EscapeSequences.SET_TEXT_COLOR_RED + " [CHECKMATE! Black wins!]" + EscapeSequences.RESET_TEXT_COLOR;
+            isGameOver = true;
         } else if (currentGame.isInCheckmate(ChessGame.TeamColor.BLACK)) {
             status = EscapeSequences.SET_TEXT_COLOR_RED + " [CHECKMATE! White wins!]" + EscapeSequences.RESET_TEXT_COLOR;
-        } else if (currentGame.isInStalemate(ChessGame.TeamColor.WHITE) && currentGame.isInStalemate(ChessGame.TeamColor.BLACK)) {
+            isGameOver = true;
+        } else if (currentGame.isInStalemate(ChessGame.TeamColor.WHITE) || currentGame.isInStalemate(ChessGame.TeamColor.BLACK)) {
             status = EscapeSequences.SET_TEXT_COLOR_RED + " [STALEMATE!]" + EscapeSequences.RESET_TEXT_COLOR;
+            isGameOver = true;
         } else if (currentGame.isInCheck(currentGame.getTeamTurn())) {
             status = EscapeSequences.SET_TEXT_COLOR_RED + " [CHECK!]" + EscapeSequences.RESET_TEXT_COLOR;
-        } else if (currentGame.isGameOver()) {
-            // TODO someone prolly resigned
-            status = EscapeSequences.SET_TEXT_COLOR_RED + " [GAME OVER]" + EscapeSequences.RESET_TEXT_COLOR;
+        } else if (isGameOver && gameOverMessage != null) {
+            status = EscapeSequences.SET_TEXT_COLOR_RED + " [" + gameOverMessage + "]" + EscapeSequences.RESET_TEXT_COLOR;
         }
 
         renderer.enqueueRenderTasks(new String[]{
@@ -495,6 +579,8 @@ public class GameManager {
                         " - Make a move (e.g., 'move e2 e4')",
                 "  " + EscapeSequences.SET_TEXT_COLOR_BLUE + "highlight <pos>" + EscapeSequences.RESET_TEXT_COLOR +
                         "   - Show legal moves for a piece (e.g., 'highlight e2')",
+                "  " + EscapeSequences.SET_TEXT_COLOR_BLUE + "clear" + EscapeSequences.RESET_TEXT_COLOR +
+                        "             - Remove highlight",
                 "  " + EscapeSequences.SET_TEXT_COLOR_BLUE + "redraw" + EscapeSequences.RESET_TEXT_COLOR +
                         "          - Redraw the chess board",
                 "  " + EscapeSequences.SET_TEXT_COLOR_BLUE + "leave" + EscapeSequences.RESET_TEXT_COLOR +
@@ -516,10 +602,27 @@ public class GameManager {
 
         String cmd = parts[0];
         switch (cmd) {
-            case "help" -> displayGameplayHelp();
-            case "redraw" -> redrawBoard();
+            case "help" -> {
+                redrawBoardWithHighlight();
+                displayGameplayHelp();
+            }
+            case "redraw" -> {
+                redrawBoardWithHighlight();
+                displayGameplayHelp();
+            }
             case "leave" -> handleLeave();
+            case "clear", "unhighlight" -> {
+                lastHighlightedPosition = null;
+                redrawBoardWithHighlight();
+                renderer.enqueueRenderTask("Highlight cleared.");
+                displayGameplayHelp();
+            }
             case "move", "m" -> {
+                if (isGameOver) {
+                    renderer.enqueueRenderTask("Cannot move. Game is over.");
+                    return;
+                }
+
                 if (parts.length < 3) {
                     renderer.enqueueRenderTask(EscapeSequences.SET_TEXT_COLOR_RED +
                             "Usage: move <from> <to> (e.g., 'move e2 e4')" + EscapeSequences.RESET_TEXT_COLOR);
@@ -527,7 +630,14 @@ public class GameManager {
                 }
                 handleMove(parts[1], parts[2]);
             }
-            case "resign" -> handleResign();
+            case "resign" -> {
+                if (isGameOver) {
+                    renderer.enqueueRenderTask("Game is already over.");
+                    return;
+                }
+
+                handleResign();
+            }
             case "highlight", "h" -> {
                 if (parts.length < 2) {
                     renderer.enqueueRenderTask(EscapeSequences.SET_TEXT_COLOR_RED +
@@ -539,5 +649,10 @@ public class GameManager {
             default -> renderer.enqueueRenderTask(EscapeSequences.SET_TEXT_COLOR_RED +
                     "Unknown command: " + cmd + ". Type 'help' for options." + EscapeSequences.RESET_TEXT_COLOR);
         }
+    }
+
+    public void setGameOver(String message) {
+        this.isGameOver = true;
+        this.gameOverMessage = "Game Over - " + message;
     }
 }

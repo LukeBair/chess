@@ -115,17 +115,25 @@ public class WebSocketManager implements WsConnectHandler, WsMessageHandler, WsC
                     username + " moved " + formatMove(moveCommand.getChessMove())
             );
             connections.broadcastToGame(gameID, session, moveNotif);
-            ChessGame.TeamColor color = ChessGame.TeamColor.valueOf(determineRole(updatedGame, username));
 
-            if (updatedGame.game().isInCheckmate(color)) {
+            ChessGame.TeamColor opponentColor = updatedGame.game().getTeamTurn(); // next player to move
+
+            boolean isCheckmate = updatedGame.game().isInCheckmate(opponentColor);
+            boolean isStalemate = updatedGame.game().isInStalemate(opponentColor);
+
+            if (isCheckmate) {
+                String winner = opponentColor == ChessGame.TeamColor.WHITE ? "Black" : "White";
                 NotificationMessage checkmateNotif = new NotificationMessage(
-                        "Checkmate! Game over."
+                        "Checkmate! " + winner + " wins!"
                 );
                 connections.broadcastToGame(gameID, null, checkmateNotif);
-            } else if (updatedGame.game().isInCheck(color)) {
-                NotificationMessage checkNotif = new NotificationMessage(
-                        "Check!"
+            } else if (isStalemate) {
+                NotificationMessage stalemateNotif = new NotificationMessage(
+                        "Stalemate! Game is a draw."
                 );
+                connections.broadcastToGame(gameID, null, stalemateNotif);
+            } else if (updatedGame.game().isInCheck(opponentColor)) {
+                NotificationMessage checkNotif = new NotificationMessage("Check!");
                 connections.broadcastToGame(gameID, null, checkNotif);
             }
 
