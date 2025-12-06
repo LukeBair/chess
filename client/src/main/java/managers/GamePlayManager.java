@@ -89,7 +89,8 @@ public class GamePlayManager {
         String cmd = parts[0];
 
         switch (cmd) {
-            case "help", "redraw" -> { redrawBoardWithHighlight(); displayGameplayHelp(); }
+            case "help" -> { redrawBoardWithHighlight(); displayGameplayHelp(); }
+            case "redraw" -> { redrawBoardWithHighlight(); displayGameplayHelp(); }
             case "clear", "unhighlight" -> {
                 lastHighlightedPosition = null;
                 redrawBoardWithHighlight();
