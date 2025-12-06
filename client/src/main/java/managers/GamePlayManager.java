@@ -23,11 +23,10 @@ public class GamePlayManager {
     public GamePlayManager(GameManager parent, Renderer renderer) {
         this.parent = parent;
         this.renderer = renderer;
-        this.myColor = parent.myColor;
+        this.myColor = parent.myColor != null ? parent.myColor : ChessGame.TeamColor.WHITE;
         this.currentGameID = parent.currentGameID;
     }
 
-    // Called ONLY when WebSocket receives LOAD_GAME
     public void updateGame(ChessGame game) {
         this.currentGame = game;
         checkGameOverConditions();
@@ -35,7 +34,9 @@ public class GamePlayManager {
     }
 
     private void checkGameOverConditions() {
-        if (currentGame == null) return;
+        if (currentGame == null) {
+            return;
+        }
         if (currentGame.isInCheckmate(ChessGame.TeamColor.WHITE) ||
                 currentGame.isInCheckmate(ChessGame.TeamColor.BLACK) ||
                 currentGame.isInStalemate(ChessGame.TeamColor.WHITE) ||
@@ -46,10 +47,6 @@ public class GamePlayManager {
     }
 
     public void playChess() {
-        if (currentGame == null) {
-//            renderer.enqueueRenderTask("Connecting to game... waiting for board");
-            return;
-        }
 
         renderer.enqueueRenderTask(EscapeSequences.ERASE_SCREEN);
         redrawBoardWithHighlight();
@@ -78,7 +75,7 @@ public class GamePlayManager {
 
         String[] boardLines = boardRenderer.drawBoard(
                 currentGame.getBoard(),
-                myColor == null ? ChessGame.TeamColor.WHITE : myColor,
+                myColor,
                 highlights
         );
         renderer.enqueueRenderTasks(boardLines);
@@ -86,12 +83,13 @@ public class GamePlayManager {
 
     private void parseCommand(String input) {
         String[] parts = input.split("\\s+");
-        if (parts.length == 0) return;
+        if (parts.length == 0) {
+            return;
+        }
         String cmd = parts[0];
 
         switch (cmd) {
-            case "help" -> { redrawBoardWithHighlight(); displayGameplayHelp(); }
-            case "redraw" -> { redrawBoardWithHighlight(); displayGameplayHelp(); }
+            case "help", "redraw" -> { redrawBoardWithHighlight(); displayGameplayHelp(); }
             case "clear", "unhighlight" -> {
                 lastHighlightedPosition = null;
                 redrawBoardWithHighlight();
@@ -100,7 +98,8 @@ public class GamePlayManager {
             case "leave" -> handleLeave();
             case "move", "m" -> {
                 if (parts.length < 3) {
-                    renderer.enqueueRenderTask(EscapeSequences.SET_TEXT_COLOR_RED + "Usage: move <from> <to> (e.g. move e2 e4)" + EscapeSequences.RESET_TEXT_COLOR);
+                    renderer.enqueueRenderTask(EscapeSequences.SET_TEXT_COLOR_RED +
+                            "Usage: move <from> <to> (e.g. move e2 e4)" + EscapeSequences.RESET_TEXT_COLOR);
                     return;
                 }
                 handleMove(parts[1], parts[2]);
@@ -113,7 +112,8 @@ public class GamePlayManager {
                 handleHighlight(parts[1]);
             }
             case "resign" -> handleResign();
-            default -> renderer.enqueueRenderTask(EscapeSequences.SET_TEXT_COLOR_RED + "Unknown command. Type 'help'." + EscapeSequences.RESET_TEXT_COLOR);
+            default -> renderer.enqueueRenderTask(EscapeSequences.SET_TEXT_COLOR_RED +
+                    "Unknown command. Type 'help'." + EscapeSequences.RESET_TEXT_COLOR);
         }
     }
 
@@ -175,7 +175,9 @@ public class GamePlayManager {
         lastHighlightedPosition = pos;
         Set<ChessPosition> highlights = new HashSet<>();
         highlights.add(pos);
-        for (ChessMove m : moves) highlights.add(m.getEndPosition());
+        for (ChessMove m : moves) {
+            highlights.add(m.getEndPosition());
+        }
 
         String[] board = boardRenderer.drawBoard(currentGame.getBoard(),
                 myColor == null ? ChessGame.TeamColor.WHITE : myColor, highlights);
@@ -208,10 +210,14 @@ public class GamePlayManager {
     }
 
     private ChessPosition parsePosition(String s) {
-        if (s.length() != 2) return null;
+        if (s.length() != 2) {
+            return null;
+        }
         char file = Character.toLowerCase(s.charAt(0));
         char rank = s.charAt(1);
-        if (file < 'a' || file > 'h' || rank < '1' || rank > '8') return null;
+        if (file < 'a' || file > 'h' || rank < '1' || rank > '8') {
+            return null;
+        }
         return new ChessPosition(rank - '0', file - 'a' + 1);
     }
 
@@ -219,21 +225,33 @@ public class GamePlayManager {
         String turn = currentGame.getTeamTurn().toString();
         String status = "";
 
-        if (currentGame.isInCheckmate(ChessGame.TeamColor.WHITE)) status = " [CHECKMATE Black wins]";
-        else if (currentGame.isInCheckmate(ChessGame.TeamColor.BLACK)) status = " [CHECKMATE White wins]";
-        else if (currentGame.isInStalemate(currentGame.getTeamTurn())) status = " [STALEMATE]";
-        else if (currentGame.isInCheck(currentGame.getTeamTurn())) status = " [CHECK]";
-        else if (isGameOver && gameOverMessage != null) status = " [" + gameOverMessage + "]";
+        if (currentGame.isInCheckmate(ChessGame.TeamColor.WHITE)) {
+            status = " [CHECKMATE Black wins]";
+        }
+        else if (currentGame.isInCheckmate(ChessGame.TeamColor.BLACK)) {
+            status = " [CHECKMATE White wins]";
+        }
+        else if (currentGame.isInStalemate(currentGame.getTeamTurn())) {
+            status = " [STALEMATE]";
+        }
+        else if (currentGame.isInCheck(currentGame.getTeamTurn())) {
+            status = " [CHECK]";
+        }
+        else if (isGameOver && gameOverMessage != null) {
+            status = " [" + gameOverMessage + "]";
+        }
 
         renderer.enqueueRenderTasks(new String[]{
                 EscapeSequences.SET_TEXT_COLOR_BLUE + "Turn: " + turn + EscapeSequences.RESET_TEXT_COLOR + status,
-                EscapeSequences.SET_TEXT_COLOR_YELLOW + "═══════════════════════════════════════════════" + EscapeSequences.RESET_TEXT_COLOR,
+                EscapeSequences.SET_TEXT_COLOR_YELLOW + "═══════════════════════════════════════════════" +
+                        EscapeSequences.RESET_TEXT_COLOR,
                 EscapeSequences.SET_TEXT_COLOR_GREEN + "Commands:" + EscapeSequences.RESET_TEXT_COLOR,
                 "  move <from> <to>     e.g. move e2 e4",
                 "  highlight <sq>       e.g. highlight e4",
                 "  redraw             clear             leave",
                 "  resign             help",
-                EscapeSequences.SET_TEXT_COLOR_YELLOW + "═══════════════════════════════════════════════" + EscapeSequences.RESET_TEXT_COLOR,
+                EscapeSequences.SET_TEXT_COLOR_YELLOW + "═══════════════════════════════════════════════" +
+                        EscapeSequences.RESET_TEXT_COLOR,
                 ""
         });
     }

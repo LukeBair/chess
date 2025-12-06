@@ -37,7 +37,9 @@ public class GameListUI {
         renderer.enqueueRenderTasks(lines.toArray(new String[0]));
 
         String input = gm.getInput().trim().toLowerCase();
-        if (input.isEmpty()) return;
+        if (input.isEmpty()) {
+            return;
+        }
 
         String[] parts = input.split("\\s+", 3);
         String cmd = parts[0];
@@ -110,7 +112,9 @@ public class GameListUI {
     private static GameListEntry findGame(GameListEntry[] games, String target) {
         try {
             int idx = Integer.parseInt(target) - 1;
-            if (idx >= 0 && idx < games.length) return games[idx];
+            if (idx >= 0 && idx < games.length) {
+                return games[idx];
+            }
         } catch (NumberFormatException ignored) {}
         return Arrays.stream(games)
                 .filter(g -> g.gameName().equalsIgnoreCase(target))

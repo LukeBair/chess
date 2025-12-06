@@ -125,17 +125,6 @@ public class GameService {
     }
 
     /**
-     * Validate auth token and return username
-     */
-    public String validateAuthToken(String authToken) throws DataAccessException {
-        if (authToken == null || authToken.trim().isEmpty()) {
-            return null;
-        }
-        AuthData authData = dao.getAuth(authToken);
-        return authData != null ? authData.username() : null;
-    }
-
-    /**
      * Make a move in a game (for WebSocket MAKE_MOVE command)
      */
     public GameData makeMove(int gameID, ChessMove move, String username) throws DataAccessException, InvalidMoveException {
@@ -234,25 +223,6 @@ public class GameService {
 
         // Update game in database
         GameData updatedGame = new GameData(game.gameID(), game.whiteUsername(), game.blackUsername(), game.gameName(), chessGame);
-        dao.updateGame(updatedGame);
-    }
-
-    public void endGame(int gameID) throws DataAccessException {
-        GameData game = dao.getGame(gameID);
-        if (game == null) {
-            throw new DataAccessException("Game not found");
-        }
-
-        ChessGame chessGame = game.game();
-        chessGame.setGameOver(true);
-
-        GameData updatedGame = new GameData(
-                game.gameID(),
-                game.whiteUsername(),
-                game.blackUsername(),
-                game.gameName(),
-                chessGame
-        );
         dao.updateGame(updatedGame);
     }
 }

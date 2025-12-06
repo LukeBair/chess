@@ -90,7 +90,7 @@ public class WebSocketManager implements WsConnectHandler, WsMessageHandler, WsC
             NotificationMessage notification = new NotificationMessage(
                     username +
                             (role.equalsIgnoreCase("black") || role.equalsIgnoreCase("white") ?
-                                    " is playing as " : "joined as ") + role
+                                    " is playing as " : " joined as ") + role
             );
             connections.broadcastToGame(gameID, session, notification);
         } catch (DataAccessException e) {

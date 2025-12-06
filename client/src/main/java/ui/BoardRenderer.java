@@ -80,15 +80,6 @@ public class BoardRenderer {
         return lines;
     }
 
-    /**
-     * Draw the initial board setup (convenience method)
-     */
-    public String[] drawInitialBoard(ChessGame.TeamColor viewAs) {
-        ChessGame game = new ChessGame();
-        game.getBoard().resetBoard();
-        return drawBoard(game.getBoard(), viewAs, null);
-    }
-
     private String getUnicode(ChessPiece piece) {
         ChessPiece.PieceType type = piece.getPieceType();
         ChessGame.TeamColor color = piece.getTeamColor();
