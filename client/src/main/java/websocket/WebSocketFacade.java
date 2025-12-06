@@ -4,7 +4,7 @@ import chess.ChessGame;
 import com.google.gson.Gson;
 import jakarta.websocket.*;
 import chess.ChessMove;
-import ui.GameManager;
+import managers.GamePlayManager;
 import ui.Renderer;
 import websocket.commands.*;
 import websocket.messages.*;
@@ -16,10 +16,10 @@ import java.net.URISyntaxException;
 public class WebSocketFacade extends Endpoint {
     Session session;
     private final Renderer renderer;
-    private final GameManager gameManager;
+    private final GamePlayManager gameManager;
     private final Gson gson = new Gson();
 
-    public WebSocketFacade(Renderer renderer, GameManager gameManager) {
+    public WebSocketFacade(Renderer renderer, GamePlayManager gameManager) {
         this.renderer = renderer;
         this.gameManager = gameManager;
 
@@ -78,7 +78,7 @@ public class WebSocketFacade extends Endpoint {
                     ChessGame game = loadGame.getGame();
 
                     if (game != null) {
-                        // Update the game in GameManager and trigger automatic redraw
+                        // Update the game in Managers.GameManager and trigger automatic redraw
                         gameManager.updateGame(game);
                     } else {
                         renderer.enqueueRenderTask("\n[ERROR] Received LOAD_GAME with null game");

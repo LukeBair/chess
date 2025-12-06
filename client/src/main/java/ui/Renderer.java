@@ -1,5 +1,7 @@
 package ui;
 
+import managers.GameManager;
+
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
