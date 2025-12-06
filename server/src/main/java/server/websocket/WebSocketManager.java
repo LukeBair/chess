@@ -87,9 +87,10 @@ public class WebSocketManager implements WsConnectHandler, WsMessageHandler, WsC
             LoadGameMessage loadMsg = new LoadGameMessage(username, role, gameID, game.game());
             connections.sendToSession(session, loadMsg);
 
-            // Send NOTIFICATION to all other clients
             NotificationMessage notification = new NotificationMessage(
-                    username + " joined as " + role
+                    username +
+                            (role.equalsIgnoreCase("black") || role.equalsIgnoreCase("white") ?
+                                    " is playing as " : "joined as ") + role
             );
             connections.broadcastToGame(gameID, session, notification);
         } catch (DataAccessException e) {

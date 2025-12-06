@@ -33,6 +33,7 @@ public class GameManager {
 
     private boolean isGameOver = false;
     private String gameOverMessage = null;
+    private boolean hasShownLoadingMessage = false;
 
     private enum GameState {
         MENU,
@@ -152,7 +153,6 @@ public class GameManager {
 
             if (piece != null && piece.getPieceType() == ChessPiece.PieceType.PAWN) {
                 int endRow = to.getRow();
-                // White pawn reaches row 8, black pawn reaches row 1
                 if ((piece.getTeamColor() == ChessGame.TeamColor.WHITE && endRow == 8) ||
                         (piece.getTeamColor() == ChessGame.TeamColor.BLACK && endRow == 1)) {
 
@@ -174,13 +174,9 @@ public class GameManager {
 
             ChessMove move = new ChessMove(from, to, promotionPiece);
             webSocketFacade.makeMove(authData.authToken(), currentGameID, move);
-
-            // Clear highlight after making a move
             lastHighlightedPosition = null;
 
-            // Show a message telling user to press Enter to see the update
             renderer.enqueueRenderTask("Move sent. Press Enter to see updated board.");
-
         } catch (Exception e) {
             renderer.enqueueRenderTask("Error making move: " + e.getMessage());
         }
@@ -541,11 +537,27 @@ public class GameManager {
 
     private void playChess() {
         if (currentGame == null) {
-            renderer.enqueueRenderTask("Connecting to game...");
-            return; // Silently wait, no input processed
+            // Only show loading message ONCE
+            if (!hasShownLoadingMessage) {
+                renderer.enqueueRenderTasks(new String[]{
+                        EscapeSequences.ERASE_SCREEN,
+                        EscapeSequences.SET_TEXT_COLOR_BLUE + EscapeSequences.SET_TEXT_BOLD,
+                        "    Loading game from server...",
+                        EscapeSequences.RESET_TEXT_COLOR,
+                        "\n\n   Please wait a moment",
+                        "\n   (You’ll see the board as soon as it arrives)"
+                });
+                hasShownLoadingMessage = true;
+            }
+            return; // Don't accept input yet
         }
 
-        // Only start accepting input after game is loaded
+        // Game is now loaded — this runs exactly once when game arrives
+        if (hasShownLoadingMessage) {
+            hasShownLoadingMessage = false; // Reset for next time
+            renderer.enqueueRenderTask(EscapeSequences.ERASE_SCREEN); // Clear loading screen
+        }
+
         redrawBoardWithHighlight();
         displayGameplayHelp();
 
