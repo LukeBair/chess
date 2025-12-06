@@ -77,13 +77,18 @@ public class GameManager {
 
     // Called by WebSocketFacade when LOAD_GAME message is received
     public void updateGame(ChessGame game) {
+        // Simply update the game state
+        // The board will be redrawn on next iteration of playChess() loop
         this.currentGame = game;
 
-        // Automatically redraw board with highlight preservation
-        redrawBoardWithHighlight();
-
-        // Show the gameplay help menu so user can immediately make a move
-        displayGameplayHelp();
+        // Check for game over conditions
+        if (game.isInCheckmate(ChessGame.TeamColor.WHITE) ||
+                game.isInCheckmate(ChessGame.TeamColor.BLACK) ||
+                game.isInStalemate(ChessGame.TeamColor.WHITE) ||
+                game.isInStalemate(ChessGame.TeamColor.BLACK) ||
+                game.isGameOver()) {
+            isGameOver = true;
+        }
     }
 
     private void redrawBoardWithHighlight() {
@@ -172,6 +177,9 @@ public class GameManager {
 
             // Clear highlight after making a move
             lastHighlightedPosition = null;
+
+            // Show a message telling user to press Enter to see the update
+            renderer.enqueueRenderTask("Move sent. Press Enter to see updated board.");
 
         } catch (Exception e) {
             renderer.enqueueRenderTask("Error making move: " + e.getMessage());
@@ -533,20 +541,18 @@ public class GameManager {
 
     private void playChess() {
         if (currentGame == null) {
-            renderer.enqueueRenderTask("Waiting for game data...");
-            getInput();
-            return;
+            renderer.enqueueRenderTask("Connecting to game...");
+            return; // Silently wait, no input processed
         }
 
+        // Only start accepting input after game is loaded
         redrawBoardWithHighlight();
         displayGameplayHelp();
 
         String input = getInput().trim().toLowerCase();
-        if (input.isEmpty()) {
-            return;
+        if (!input.isEmpty()) {
+            parseGameplayCommand(input);
         }
-
-        parseGameplayCommand(input);
     }
 
     private void displayGameplayHelp() {
