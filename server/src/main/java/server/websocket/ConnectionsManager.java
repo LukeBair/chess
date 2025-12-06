@@ -1,5 +1,6 @@
 package server.websocket;
 
+import chess.ChessGame;
 import com.google.gson.Gson;
 import org.eclipse.jetty.websocket.api.Session;
 import websocket.messages.NotificationMessage;
@@ -10,14 +11,16 @@ import java.util.ArrayList;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class ConnectionsManager {
-    public final ConcurrentHashMap<Integer, ArrayList<Session>> connections = new ConcurrentHashMap<>();
-    public final ConcurrentHashMap<Session, Integer> sessionToGame = new ConcurrentHashMap<>(); // for removal
+    private final ConcurrentHashMap<Integer, ArrayList<Session>> connections = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<Session, Integer> sessionToGame = new ConcurrentHashMap<>(); // for removal
+    private final ConcurrentHashMap<Integer, ChessGame>  gameToConnection = new ConcurrentHashMap<>();
 
+    private final Gson gson = new Gson();
     public void add(Session session, int gameID) {
-        System.out.println("Adding connection to session: " + session.getRemoteAddress());
         connections.putIfAbsent(gameID, new ArrayList<>());
         connections.get(gameID).add(session);
         sessionToGame.put(session, gameID);
+        gameToConnection.putIfAbsent(gameID, new ChessGame());
     }
 
     public void remove(Session session) {
@@ -34,7 +37,6 @@ public class ConnectionsManager {
     }
 
     public void broadcastToGame(int gameID, Session excludeSession, ServerMessage message) throws IOException {
-        System.out.println("Broadcasting to game " + gameID);
         String msg = new Gson().toJson(message);
 
         ArrayList<Session> sessions = connections.get(gameID);

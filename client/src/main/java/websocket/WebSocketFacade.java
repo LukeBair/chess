@@ -1,13 +1,13 @@
 package websocket;
 
+import chess.ChessGame;
 import com.google.gson.Gson;
-
 import jakarta.websocket.*;
+import chess.ChessMove;
+import ui.GameManager;
 import ui.Renderer;
-import websocket.messages.ErrorMessage;
-import websocket.messages.LoadGameMessage;
-import websocket.messages.NotificationMessage;
-import websocket.messages.ServerMessage;
+import websocket.commands.*;
+import websocket.messages.*;
 
 import java.io.IOException;
 import java.net.URI;
@@ -16,62 +16,114 @@ import java.net.URISyntaxException;
 public class WebSocketFacade extends Endpoint {
     Session session;
     private final Renderer renderer;
+    private final GameManager gameManager;
+    private final Gson gson = new Gson();
 
-    public WebSocketFacade(Renderer renderer) {
+    public WebSocketFacade(Renderer renderer, GameManager gameManager) {
         this.renderer = renderer;
+        this.gameManager = gameManager;
 
         try {
             URI socketURI = new URI("ws://localhost:8080/ws");
-
             WebSocketContainer container = ContainerProvider.getWebSocketContainer();
             this.session = container.connectToServer(this, socketURI);
 
-            //set message handler
+            // Set message handler
             this.session.addMessageHandler(new MessageHandler.Whole<String>() {
                 @Override
                 public void onMessage(String message) {
-                    ServerMessage serverMessage = new Gson().fromJson(message, ServerMessage.class);
-
-                    if (serverMessage.getServerMessageType() == ServerMessage.ServerMessageType.NOTIFICATION) {
-                        NotificationMessage notif = new Gson().fromJson(message, NotificationMessage.class);
-                        renderer.enqueueRenderTask(notif.getMessage());
-                    } else if (serverMessage.getServerMessageType() == ServerMessage.ServerMessageType.ERROR) {
-                        ErrorMessage error = new Gson().fromJson(message, ErrorMessage.class);
-                        renderer.enqueueRenderTask("ERROR: " + error.getErrorMessage());
-                    } else if (serverMessage.getServerMessageType() == ServerMessage.ServerMessageType.LOAD_GAME) {
-                        LoadGameMessage loadGame = new Gson().fromJson(message, LoadGameMessage.class);
-                        renderer.enqueueRenderTask(loadGame.getMessage());
-                    }
+                    handleServerMessage(message);
                 }
             });
-
         } catch (DeploymentException | IOException | URISyntaxException ex) {
-            //TODO: issues
-            System.out.println(ex);
+            System.out.println("WebSocket connection error: " + ex);
         }
     }
 
-    //Endpoint requires this method, but you don't have to do anything
     @Override
-    public void onOpen(Session session, EndpointConfig endpointConfig) { }
+    public void onOpen(Session session, EndpointConfig endpointConfig) {
+    }
 
-    public void loadGame(String visitorName, String role, int gameID) {
+    private void handleServerMessage(String message) {
         try {
-            var action = new LoadGameMessage(visitorName, role, gameID);
-            this.session.getBasicRemote().sendText(new Gson().toJson(action));
-        } catch (IOException ex) {
-            System.out.println(ex);
+            ServerMessage serverMessage = gson.fromJson(message, ServerMessage.class);
+
+            switch (serverMessage.getServerMessageType()) {
+                case NOTIFICATION -> {
+                    NotificationMessage notif = gson.fromJson(message, NotificationMessage.class);
+                    renderer.enqueueRenderTask("\n[NOTIFICATION] " + notif.getMessage());
+                }
+                case ERROR -> {
+                    ErrorMessage error = gson.fromJson(message, ErrorMessage.class);
+                    renderer.enqueueRenderTask("\n[ERROR] " + error.getErrorMessage());
+                }
+                case LOAD_GAME -> {
+                    LoadGameMessage loadGame = gson.fromJson(message, LoadGameMessage.class);
+                    ChessGame game = loadGame.getGame();
+
+                    if (game != null) {
+                        // Update the game in GameManager
+                        gameManager.updateGame(game);
+                        renderer.enqueueRenderTask("\n[Game board updated]");
+                    } else {
+                        renderer.enqueueRenderTask("\n[ERROR] Received LOAD_GAME with null game");
+                    }
+                }
+                case MOVE -> {
+                    MakeMoveMessage moveMsg = gson.fromJson(message, MakeMoveMessage.class);
+                    ChessGame game = moveMsg.getGame();
+
+                    if (game != null) {
+                        // Update the game in GameManager
+                        gameManager.updateGame(game);
+                        renderer.enqueueRenderTask("\n[Move executed - board updated]");
+                    } else {
+                        renderer.enqueueRenderTask("\n[ERROR] Received MAKE_MOVE with null game");
+                    }
+                }
+            }
+        } catch (Exception e) {
+            renderer.enqueueRenderTask("\n[ERROR] Failed to process server message: " + e.getMessage());
         }
     }
 
-    public void leavePetShop(String visitorName) {
-//        try {
-////            var action = new Action(Action.Type.EXIT, visitorName);
-////            this.session.getBasicRemote().sendText(new Gson().toJson(action));
-//        } catch (IOException ex) {
-//            System.out.println(ex);
-//            // TODO: fix
-//        }
+    // CONNECT command
+    public void connect(String authToken, int gameID) {
+        try {
+            var command = new ConnectCommand(authToken, gameID);
+            this.session.getBasicRemote().sendText(gson.toJson(command));
+        } catch (IOException ex) {
+            System.out.println("Error sending CONNECT: " + ex);
+        }
     }
 
+    // MAKE_MOVE command
+    public void makeMove(String authToken, int gameID, ChessMove move) {
+        try {
+            var command = new MakeMoveCommand(authToken, gameID, move);
+            this.session.getBasicRemote().sendText(gson.toJson(command));
+        } catch (IOException ex) {
+            System.out.println("Error sending MAKE_MOVE: " + ex);
+        }
+    }
+
+    // LEAVE command
+    public void leaveGame(String authToken, int gameID) {
+        try {
+            var command = new LeaveCommand(authToken, gameID);
+            this.session.getBasicRemote().sendText(gson.toJson(command));
+        } catch (IOException ex) {
+            System.out.println("Error sending LEAVE: " + ex);
+        }
+    }
+
+    // RESIGN command
+    public void resign(String authToken, int gameID) {
+        try {
+            var command = new ResignCommand(authToken, gameID);
+            this.session.getBasicRemote().sendText(gson.toJson(command));
+        } catch (IOException ex) {
+            System.out.println("Error sending RESIGN: " + ex);
+        }
+    }
 }

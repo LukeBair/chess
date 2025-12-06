@@ -41,7 +41,7 @@ public class Server {
         this.userService = new UserService(sqlDataAccess);
         this.gameService = new GameService(sqlDataAccess);
         this.clearService = new ClearService(sqlDataAccess);
-        this.webSocketHandler = new WebSocketManager();
+        this.webSocketHandler = new WebSocketManager(gameService, userService);
         this.gson = new Gson();
 
         javalin = Javalin.create(config -> {

@@ -71,4 +71,16 @@ public class UserService {
             return new LogoutResult("Error: " + e.getMessage());
         }
     }
+
+    public AuthData getAuthByToken(String authToken) {
+        try {
+            if (authToken == null || authToken.trim().isEmpty()) {
+                return null;
+            }
+
+            return dao.getAuth(authToken);
+        } catch (DataAccessException e) {
+            return null;
+        }
+    }
 }

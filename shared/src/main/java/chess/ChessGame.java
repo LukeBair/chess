@@ -16,6 +16,15 @@ public class ChessGame {
 
     private ArrayList<ChessPosition> blackPiecesPositions = new ArrayList<>();
     private ArrayList<ChessPosition> whitePiecesPositions = new ArrayList<>();
+    private boolean gameOver = false;
+
+    public boolean isGameOver() {
+        return gameOver;
+    }
+
+    public void setGameOver(boolean gameOver) {
+        this.gameOver = gameOver;
+    }
 
     public ChessGame() {
         for (int i = 1; i <= 8; i++) {

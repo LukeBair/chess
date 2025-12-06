@@ -1,9 +1,11 @@
 package service;
 
+import chess.ChessGame;
+import chess.ChessMove;
+import chess.InvalidMoveException;
 import dataaccess.DataAccess;
 import dataaccess.DataAccessException;
 import models.*;
-import chess.ChessGame;
 
 import java.util.List;
 import java.util.UUID;
@@ -11,6 +13,7 @@ import java.util.stream.Collectors;
 
 public class GameService {
     private final DataAccess dao;
+
     public GameService(DataAccess dao) {
         this.dao = dao;
     }
@@ -44,14 +47,11 @@ public class GameService {
                 return new CreateGameResult(-1, "Error: unauthorized");
             }
             String gameName = request.gameName();
-            if (gameName == null || gameName.trim().isEmpty()) {  // Enforce min length
+            if (gameName == null || gameName.trim().isEmpty()) {
                 return new CreateGameResult(-1, "Error: bad request");
             }
 
-            // Safer ID: UUID hash (positive int, low collision risk)
             int id = Math.abs(UUID.randomUUID().hashCode());
-
-            // Check for collision (rare, but retry if needed)
             while (dao.getGame(id) != null) {
                 id = Math.abs(UUID.randomUUID().hashCode());
             }
@@ -104,7 +104,7 @@ public class GameService {
                     return new JoinGameResult(null);
                 }
                 case "UNASSIGNED" -> {
-                    return new JoinGameResult(null);  // Success, no update needed
+                    return new JoinGameResult(null);
                 }
                 default -> {
                     return new JoinGameResult("Error: bad request");
@@ -113,5 +113,119 @@ public class GameService {
         } catch (DataAccessException e) {
             return new JoinGameResult("Error: " + e.getMessage());
         }
+    }
+
+    // WebSocket Methods
+
+    /**
+     * Get a game by ID (for WebSocket handlers)
+     */
+    public GameData getGame(int gameID) throws DataAccessException {
+        return dao.getGame(gameID);
+    }
+
+    /**
+     * Validate auth token and return username
+     */
+    public String validateAuthToken(String authToken) throws DataAccessException {
+        if (authToken == null || authToken.trim().isEmpty()) {
+            return null;
+        }
+        AuthData authData = dao.getAuth(authToken);
+        return authData != null ? authData.username() : null;
+    }
+
+    /**
+     * Make a move in a game (for WebSocket MAKE_MOVE command)
+     */
+    public GameData makeMove(int gameID, ChessMove move, String username) throws DataAccessException, InvalidMoveException {
+        GameData game = dao.getGame(gameID);
+        if (game == null) {
+            throw new DataAccessException("Game not found");
+        }
+
+        ChessGame chessGame = game.game();
+
+        // Check if game is over
+        if (chessGame.isGameOver()) {
+            throw new InvalidMoveException("Game is over");
+        }
+
+        // Determine which color the user is playing
+        ChessGame.TeamColor playerColor = null;
+        if (game.whiteUsername() != null && username.equals(game.whiteUsername())) {
+            playerColor = ChessGame.TeamColor.WHITE;
+        } else if (game.blackUsername() != null && username.equals(game.blackUsername())) {
+            playerColor = ChessGame.TeamColor.BLACK;
+        } else {
+            throw new InvalidMoveException("You are not a player in this game");
+        }
+
+        // Check if it's the player's turn
+        if (chessGame.getTeamTurn() != playerColor) {
+            throw new InvalidMoveException("It's not your turn");
+        }
+
+        // Make the move (this will throw InvalidMoveException if invalid)
+        chessGame.makeMove(move);
+
+        // Update game in database
+        GameData updatedGame = new GameData(game.gameID(), game.whiteUsername(), game.blackUsername(), game.gameName(), chessGame);
+        dao.updateGame(updatedGame);
+
+        return updatedGame;
+    }
+
+    /**
+     * Remove a player from a game (for WebSocket LEAVE command)
+     */
+    public void leaveGame(int gameID, String username) throws DataAccessException {
+        GameData game = dao.getGame(gameID);
+        if (game == null) {
+            throw new DataAccessException("Game not found");
+        }
+
+        String newWhite = game.whiteUsername();
+        String newBlack = game.blackUsername();
+
+        if (game.whiteUsername() != null && username.equals(game.whiteUsername())) {
+            newWhite = null;
+        } else if (game.blackUsername() != null && username.equals(game.blackUsername())) {
+            newBlack = null;
+        }
+        // If observer, no change to game data needed
+
+        GameData updatedGame = new GameData(game.gameID(), newWhite, newBlack, game.gameName(), game.game());
+        dao.updateGame(updatedGame);
+    }
+
+    /**
+     * Mark a game as over due to resignation (for WebSocket RESIGN command)
+     */
+    public void resignGame(int gameID, String username) throws DataAccessException, InvalidMoveException {
+        GameData game = dao.getGame(gameID);
+        if (game == null) {
+            throw new DataAccessException("Game not found");
+        }
+
+        // Check if user is a player (not observer)
+        if (game.whiteUsername() != null && (!username.equals(game.whiteUsername())) &&
+           (game.blackUsername() != null && !username.equals(game.blackUsername()))) {
+            throw new InvalidMoveException("Observers cannot resign");
+        }
+
+        ChessGame chessGame = game.game();
+
+        // Check if game is already over
+        if (chessGame.isGameOver()) {
+            throw new InvalidMoveException("Game is already over");
+        }
+
+        // Mark game as over
+        chessGame.setGameOver(true);
+
+        // Update game in database
+        GameData updatedGame = new GameData(game.gameID(), game.whiteUsername(), game.blackUsername(), game.gameName(), chessGame);
+        dao.updateGame(updatedGame);
     }
 }

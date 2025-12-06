@@ -1,5 +1,9 @@
 package ui;
+
+import chess.ChessBoard;
 import chess.ChessGame;
+import chess.ChessMove;
+import chess.ChessPosition;
 import client.data.ServerFacade;
 import helpers.Common;
 import models.AuthData;
@@ -9,13 +13,8 @@ import websocket.WebSocketFacade;
 
 import java.util.*;
 
-/*
- * inspired by unity game object classes
- */
 public class GameManager {
     public static boolean running = false;
-    private final int screenHeight = 100;
-
     private final Scanner scanner = new Scanner(System.in);
     private final Renderer renderer = new Renderer();
     private final ServerFacade server = new ServerFacade(8080);
@@ -24,8 +23,10 @@ public class GameManager {
     private AuthData authData;
     private final BoardRenderer boardRenderer = new BoardRenderer();
     private ChessGame.TeamColor myColor;
+    private ChessGame currentGame;
+    private int currentGameID;
 
-    private WebSocketFacade webSocketFacade = new WebSocketFacade(renderer);
+    private WebSocketFacade webSocketFacade;
     private String username;
 
     private enum GameState {
@@ -43,6 +44,7 @@ public class GameManager {
     public void start() {
         running = true;
         renderer.start();
+        webSocketFacade = new WebSocketFacade(renderer, this);
 
         while (running) {
             renderer.enqueueRenderTask(EscapeSequences.ERASE_SCREEN);
@@ -62,31 +64,144 @@ public class GameManager {
         } else if (currentState == GameState.VIEW_GAMES) {
             displayViewGames();
         } else if (currentState == GameState.PLAYING || currentState == GameState.OBSERVING) {
-            displayGameBoard();
+            playChess();
         } else if (currentState == GameState.LOGOUT) {
             displayLogout();
         }
     }
 
-    private void displayGameBoard() {
-        String[] boardLines = boardRenderer.drawInitialBoard(myColor == null ? ChessGame.TeamColor.WHITE : myColor);
-        renderer.enqueueRenderTasks(boardLines);
-        renderer.enqueueRenderTask("\nEnter 'quit' to exit.");
-        String input = getInput().trim();
-        if ("quit".equalsIgnoreCase(input)) {
-            myColor = null;  // Reset
-            currentState = GameState.VIEW_GAMES;
-        } else if("help".equalsIgnoreCase(input)) { //neat didnt think this would work
-            renderer.enqueueRenderTask("Work in progress! Type \"exit\" to exit.\nHit enter to continue");
-            getInput();
+    // Called by WebSocketFacade when LOAD_GAME message is received
+    public void updateGame(ChessGame game) {
+        this.currentGame = game;
+        redrawBoard();
+    }
+
+    private void handleMove(String fromStr, String toStr) {
+        if (currentState == GameState.OBSERVING) {
+            renderer.enqueueRenderTask("Observers cannot make moves.");
+            return;
         }
+
+        try {
+            ChessPosition from = parsePosition(fromStr);
+            ChessPosition to = parsePosition(toStr);
+
+            if (from == null || to == null) {
+                renderer.enqueueRenderTask("Invalid position format. Use format like 'e2' or 'a1'");
+                return;
+            }
+
+            // Check for promotion (if pawn reaches end rank)
+            ChessMove move = new ChessMove(from, to, null);
+
+            // TODO: Check if this is a pawn promotion and prompt for piece type
+
+            webSocketFacade.makeMove(authData.authToken(), currentGameID, move);
+
+        } catch (Exception e) {
+            renderer.enqueueRenderTask("Error making move: " + e.getMessage());
+        }
+    }
+
+    private void handleHighlight(String posStr) {
+        try {
+            ChessPosition pos = parsePosition(posStr);
+            if (pos == null) {
+                renderer.enqueueRenderTask("Invalid position format. Use format like 'e2' or 'a1'");
+                return;
+            }
+
+            if (currentGame == null) {
+                renderer.enqueueRenderTask("No game loaded.");
+                return;
+            }
+
+            // Get valid moves for the piece at this position
+            var validMoves = currentGame.validMoves(pos);
+
+            if (validMoves == null || validMoves.isEmpty()) {
+                renderer.enqueueRenderTask("No valid moves for piece at " + posStr);
+                return;
+            }
+
+            // Collect all end positions for highlighting
+            Set<ChessPosition> highlightPositions = new HashSet<>();
+            highlightPositions.add(pos);  // Highlight the piece itself
+            for (ChessMove move : validMoves) {
+                highlightPositions.add(move.getEndPosition());
+            }
+
+            // Draw board with highlights
+            String[] boardLines = boardRenderer.drawBoard(
+                    currentGame.getBoard(),
+                    myColor == null ? ChessGame.TeamColor.WHITE : myColor,
+                    highlightPositions
+            );
+            renderer.enqueueRenderTasks(boardLines);
+            renderer.enqueueRenderTask("Showing legal moves for piece at " + posStr);
+            getInput();
+
+        } catch (Exception e) {
+            renderer.enqueueRenderTask("Error highlighting moves: " + e.getMessage());
+        }
+    }
+
+    private void handleLeave() {
+        try {
+            webSocketFacade.leaveGame(authData.authToken(), currentGameID);
+            currentGame = null;
+            currentGameID = 0;
+            myColor = null;
+            currentState = GameState.VIEW_GAMES;
+        } catch (Exception e) {
+            renderer.enqueueRenderTask("Error leaving game: " + e.getMessage());
+        }
+    }
+
+    private void handleResign() {
+        if (currentState == GameState.OBSERVING) {
+            renderer.enqueueRenderTask("Observers cannot resign.");
+            return;
+        }
+
+        renderer.enqueueRenderTask("Are you sure you want to resign? (yes/no)");
+        String confirm = getInput().trim().toLowerCase();
+
+        if (confirm.equals("yes") || confirm.equals("y")) {
+            try {
+                webSocketFacade.resign(authData.authToken(), currentGameID);
+                renderer.enqueueRenderTask("You have resigned from the game.");
+            } catch (Exception e) {
+                renderer.enqueueRenderTask("Error resigning: " + e.getMessage());
+            }
+        } else {
+            renderer.enqueueRenderTask("Resign cancelled.");
+        }
+    }
+
+    private ChessPosition parsePosition(String pos) {
+        if (pos == null || pos.length() != 2) {
+            return null;
+        }
+
+        char col = pos.charAt(0);
+        char row = pos.charAt(1);
+
+        if (col < 'a' || col > 'h' || row < '1' || row > '8') {
+            return null;
+        }
+
+        int colNum = col - 'a' + 1;  // a=1, b=2, ..., h=8
+        int rowNum = row - '0';       // 1=1, 2=2, ..., 8=8
+
+        return new ChessPosition(rowNum, colNum);
     }
 
     private void displayLogout() {
         try {
             server.logout(authData.authToken());
         } catch (Exception e) {
-            renderer.enqueueRenderTask("Logout error: " + e.getMessage()); // what
+            renderer.enqueueRenderTask("Logout error: " + e.getMessage());
         }
         authData = null;
         currentState = GameState.MENU;
@@ -99,7 +214,7 @@ public class GameManager {
             ArrayList<String> renderTasks = new ArrayList<>();
             renderTasks.add(Common.GAME_TITLE);
             renderTasks.add("\n\n\n");
-            renderTasks.add("Available Games (refreshes every 3s on change):");
+            renderTasks.add("Available Games:");
 
             for (int i = 0; i < games.length; i++) {
                 String white = games[i].whiteUsername() != null ? games[i].whiteUsername() + " (WHITE)" : "UNASSIGNED";
@@ -116,38 +231,42 @@ public class GameManager {
             renderer.enqueueRenderTasks(renderTasks.toArray(new String[0]));
 
             String input = getInput().trim();
-            if (input.isEmpty()) { return; }
+            if (input.isEmpty()) {
+                return;
+            }
 
             parseViewGamesCommand(games, input.toLowerCase());
         } catch (Exception e) {
             renderer.enqueueRenderTask("Error listing games: " + e.getMessage());
-            getInput();  // Wait for ack
+            getInput();
         }
     }
 
     private void parseViewGamesCommand(GameListEntry[] games, String input) {
-        String[] parts = input.split("\\s+", 3);  // Max 3 parts: command arg1 arg2 (if needed)
-        if (parts.length < 1) { return; }
+        String[] parts = input.split("\\s+", 3);
+        if (parts.length < 1) {
+            return;
+        }
 
         String cmd = parts[0];
         switch (cmd) {
             case "create" -> {
                 if (parts.length < 2) {
-                    renderer.enqueueRenderTask("Usage: create game <name>");
+                    renderer.enqueueRenderTask("Usage: create <name>");
                     return;
                 }
                 handleCreateGame(parts[1]);
             }
             case "join" -> {
                 if (parts.length < 2) {
-                    renderer.enqueueRenderTask("Usage: join game <index|name>");
+                    renderer.enqueueRenderTask("Usage: join <index|name>");
                     return;
                 }
                 handleJoinOrObserve(games, parts[1], false);
             }
             case "observe" -> {
                 if (parts.length < 2) {
-                    renderer.enqueueRenderTask("Usage: observe game <index|name>");
+                    renderer.enqueueRenderTask("Usage: observe <index|name>");
                     return;
                 }
                 handleJoinOrObserve(games, parts[1], true);
@@ -157,7 +276,6 @@ public class GameManager {
             case "refresh" -> {}
             case "help" -> {
                 renderer.enqueueRenderTasks(new String[]{
-                        // if the autograder gets me here for duping imma explode
                         "\nCommands:",
                         "create <name> - Create a new game",
                         "join <index|name> - Join as player (auto WHITE/BLACK)",
@@ -193,8 +311,7 @@ public class GameManager {
             if (idx >= 0 && idx < games.length) {
                 game = games[idx];
             }
-        }
-        catch (NumberFormatException ignored) {
+        } catch (NumberFormatException ignored) {
             game = Arrays.stream(games)
                     .filter(g -> g.gameName().equalsIgnoreCase(target))
                     .findFirst().orElse(null);
@@ -209,20 +326,27 @@ public class GameManager {
         try {
             String playerColor = isObserve ? "UNASSIGNED" :
                     (game.whiteUsername() == null ? "WHITE" : (game.blackUsername() == null ? "BLACK" : null));
+
             if (!isObserve && playerColor == null) {
                 renderer.enqueueRenderTask("Game full! Observe instead. Please hit enter to continue");
                 getInput();
                 return;
             }
 
-            var res = server.joinGame(game.gameID(), playerColor, authData.authToken());
-            webSocketFacade.loadGame(username, (playerColor.equals("UNASSIGNED") ? "an observer" : playerColor), game.gameID()); // ADD gameID here
-
-            if (isObserve) {
-                currentState = GameState.OBSERVING;
-            } else {
-                currentState = GameState.PLAYING;
+            // HTTP join (only for players, not observers)
+            if (!isObserve) {
+                server.joinGame(game.gameID(), playerColor, authData.authToken());
             }
+
+            // Store game info
+            currentGameID = game.gameID();
+            myColor = playerColor.equals("WHITE") ? ChessGame.TeamColor.WHITE :
+                    playerColor.equals("BLACK") ? ChessGame.TeamColor.BLACK : null;
+
+            // WebSocket connect
+            webSocketFacade.connect(authData.authToken(), game.gameID());
+
+            currentState = isObserve ? GameState.OBSERVING : GameState.PLAYING;
 
         } catch (Exception e) {
             renderer.enqueueRenderTask((isObserve ? "Observe" : "Join") + " failed: " + e.getMessage());
@@ -230,7 +354,7 @@ public class GameManager {
     }
 
     private void displayMainMenu() {
-        renderer.enqueueRenderTasks(new String[] {
+        renderer.enqueueRenderTasks(new String[]{
                 Common.GAME_TITLE,
                 "\n\n\n",
                 "Commands:",
@@ -246,7 +370,7 @@ public class GameManager {
         } else if ("quit".equalsIgnoreCase(input)) {
             currentState = GameState.QUIT;
         } else if ("help".equalsIgnoreCase(input)) {
-            renderer.enqueueRenderTasks(new String[] {
+            renderer.enqueueRenderTasks(new String[]{
                     Common.GAME_TITLE,
                     "\n\n\n",
                     "Commands:",
@@ -255,63 +379,56 @@ public class GameManager {
                     "quit  - Exit the game",
                     "please hit enter to continue"
             });
-
             getInput();
         }
     }
 
     private void displayCreateAccount() {
-        renderer.enqueueRenderTasks(new String[] {
+        renderer.enqueueRenderTasks(new String[]{
                 Common.GAME_TITLE,
                 "\n\n\n",
                 "Enter username:"
         });
         username = getInput().trim();
 
-        renderer.enqueueRenderTasks(new String[] {
-                "Enter password:"
-        });
+        renderer.enqueueRenderTasks(new String[]{"Enter password:"});
         String password = getInput();
 
-        renderer.enqueueRenderTasks(new String[] {
-                "Enter email:"
-        });
+        renderer.enqueueRenderTasks(new String[]{"Enter email:"});
         String email = getInput().trim();
 
         try {
             authData = server.register(username, password, email);
-            renderer.enqueueRenderTasks(new String[] { "Account created! Press enter to continue." });
+            renderer.enqueueRenderTasks(new String[]{"Account created! Press enter to continue."});
             getInput();
             currentState = GameState.VIEW_GAMES;
         } catch (Exception e) {
-            renderer.enqueueRenderTask("Registration failed (e.g., username taken): " + e.getMessage() + "\nPress enter.");
+            renderer.enqueueRenderTask("Registration failed: " + e.getMessage() + "\nPress enter.");
             getInput();
-            currentState = GameState.MENU;  // Back to menu on fail
+            currentState = GameState.MENU;
         }
     }
 
     public void displayLogin() {
-        renderer.enqueueRenderTasks(new String[] {
+        renderer.enqueueRenderTasks(new String[]{
                 Common.GAME_TITLE,
                 "\n\n\n",
                 "Enter username:"
         });
         username = getInput().trim();
 
-        renderer.enqueueRenderTasks(new String[] {
-                "Enter password:"
-        });
+        renderer.enqueueRenderTasks(new String[]{"Enter password:"});
         String password = getInput();
 
         try {
             authData = server.login(username, password);
-            renderer.enqueueRenderTasks(new String[] { "Logged in! Press enter to continue." });
+            renderer.enqueueRenderTasks(new String[]{"Logged in! Press enter to continue."});
             getInput();
             currentState = GameState.VIEW_GAMES;
         } catch (Exception e) {
             renderer.enqueueRenderTask("Login failed: " + e.getMessage() + "\nPress enter.");
             getInput();
-            currentState = GameState.MENU;  // Back to menu on fail
+            currentState = GameState.MENU;
         }
     }
 
@@ -319,5 +436,108 @@ public class GameManager {
         return scanner.nextLine();
     }
 
+    private void playChess() {
+        if (currentGame == null) {
+            renderer.enqueueRenderTask("Waiting for game data...");
+            getInput();
+            return;
+        }
 
+        redrawBoard();
+        displayGameplayHelp();
+
+        String input = getInput().trim().toLowerCase();
+        if (input.isEmpty()) {
+            return;
+        }
+
+        parseGameplayCommand(input);
+    }
+
+    private void redrawBoard() {
+        if (currentGame == null) {
+            renderer.enqueueRenderTask("No game loaded yet.");
+            return;
+        }
+        String[] boardLines = boardRenderer.drawBoard(
+                currentGame.getBoard(),
+                myColor == null ? ChessGame.TeamColor.WHITE : myColor,
+                null  // No highlights
+        );
+        renderer.enqueueRenderTasks(boardLines);
+    }
+
+    private void displayGameplayHelp() {
+        // Show whose turn it is
+        String turnInfo = EscapeSequences.SET_TEXT_COLOR_BLUE + "Turn: " +
+                currentGame.getTeamTurn() + EscapeSequences.RESET_TEXT_COLOR;
+
+        // Show game status
+        String status = "";
+        if (currentGame.isInCheckmate(ChessGame.TeamColor.WHITE)) {
+            status = EscapeSequences.SET_TEXT_COLOR_RED + " [CHECKMATE! Black wins!]" + EscapeSequences.RESET_TEXT_COLOR;
+        } else if (currentGame.isInCheckmate(ChessGame.TeamColor.BLACK)) {
+            status = EscapeSequences.SET_TEXT_COLOR_RED + " [CHECKMATE! White wins!]" + EscapeSequences.RESET_TEXT_COLOR;
+        } else if (currentGame.isInStalemate(ChessGame.TeamColor.WHITE) && currentGame.isInStalemate(ChessGame.TeamColor.BLACK)) {
+            status = EscapeSequences.SET_TEXT_COLOR_RED + " [STALEMATE!]" + EscapeSequences.RESET_TEXT_COLOR;
+        } else if (currentGame.isInCheck(currentGame.getTeamTurn())) {
+            status = EscapeSequences.SET_TEXT_COLOR_RED + " [CHECK!]" + EscapeSequences.RESET_TEXT_COLOR;
+        } else if (currentGame.isGameOver()) {
+            // TODO someone prolly resigned
+            status = EscapeSequences.SET_TEXT_COLOR_RED + " [GAME OVER]" + EscapeSequences.RESET_TEXT_COLOR;
+        }
+
+        renderer.enqueueRenderTasks(new String[]{
+                turnInfo + status,
+                "\n" + EscapeSequences.SET_TEXT_COLOR_YELLOW + "═══════════════════════════════════════════════" + EscapeSequences.RESET_TEXT_COLOR,
+                EscapeSequences.SET_TEXT_COLOR_GREEN + "Available Commands:" + EscapeSequences.RESET_TEXT_COLOR,
+                "  " + EscapeSequences.SET_TEXT_COLOR_BLUE + "move <from> <to>" + EscapeSequences.RESET_TEXT_COLOR +
+                        " - Make a move (e.g., 'move e2 e4')",
+                "  " + EscapeSequences.SET_TEXT_COLOR_BLUE + "highlight <pos>" + EscapeSequences.RESET_TEXT_COLOR +
+                        "   - Show legal moves for a piece (e.g., 'highlight e2')",
+                "  " + EscapeSequences.SET_TEXT_COLOR_BLUE + "redraw" + EscapeSequences.RESET_TEXT_COLOR +
+                        "          - Redraw the chess board",
+                "  " + EscapeSequences.SET_TEXT_COLOR_BLUE + "leave" + EscapeSequences.RESET_TEXT_COLOR +
+                        "           - Leave the game",
+                "  " + EscapeSequences.SET_TEXT_COLOR_BLUE + "resign" + EscapeSequences.RESET_TEXT_COLOR +
+                        "          - Forfeit the game",
+                "  " + EscapeSequences.SET_TEXT_COLOR_BLUE + "help" + EscapeSequences.RESET_TEXT_COLOR +
+                        "            - Show this help menu",
+                EscapeSequences.SET_TEXT_COLOR_YELLOW + "═══════════════════════════════════════════════" + EscapeSequences.RESET_TEXT_COLOR,
+                ""
+        });
+    }
+
+    private void parseGameplayCommand(String input) {
+        String[] parts = input.split("\\s+");
+        if (parts.length < 1) {
+            return;
+        }
+
+        String cmd = parts[0];
+        switch (cmd) {
+            case "help" -> displayGameplayHelp();
+            case "redraw" -> redrawBoard();
+            case "leave" -> handleLeave();
+            case "move", "m" -> {
+                if (parts.length < 3) {
+                    renderer.enqueueRenderTask(EscapeSequences.SET_TEXT_COLOR_RED +
+                            "Usage: move <from> <to> (e.g., 'move e2 e4')" + EscapeSequences.RESET_TEXT_COLOR);
+                    return;
+                }
+                handleMove(parts[1], parts[2]);
+            }
+            case "resign" -> handleResign();
+            case "highlight", "h" -> {
+                if (parts.length < 2) {
+                    renderer.enqueueRenderTask(EscapeSequences.SET_TEXT_COLOR_RED +
+                            "Usage: highlight <position> (e.g., 'highlight e2')" + EscapeSequences.RESET_TEXT_COLOR);
+                    return;
+                }
+                handleHighlight(parts[1]);
+            }
+            default -> renderer.enqueueRenderTask(EscapeSequences.SET_TEXT_COLOR_RED +
+                    "Unknown command: " + cmd + ". Type 'help' for options." + EscapeSequences.RESET_TEXT_COLOR);
+        }
+    }
 }

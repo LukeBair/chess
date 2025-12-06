@@ -1,17 +1,21 @@
 package websocket.messages;
 
-public class LoadGameMessage extends ServerMessage {
-    private String visitorName;
-    private String role;
-    private int gameID;
-    private String message;
+import chess.ChessGame;
 
-    public LoadGameMessage(String visitorName, String role, int gameID) {
+public class LoadGameMessage extends ServerMessage {
+    private final String visitorName;
+    private final String role;
+    private final int gameID;
+    private final String message;
+    private final ChessGame game;
+
+    public LoadGameMessage(String visitorName, String role, int gameID, ChessGame game) {
         super(ServerMessageType.LOAD_GAME);
         this.visitorName = visitorName;
         this.role = role;
         this.gameID = gameID;
         this.message = visitorName + " joined as " + role;
+        this.game = game;
     }
 
     public String getMessage() {
@@ -21,4 +25,9 @@ public class LoadGameMessage extends ServerMessage {
     public int getGameID() {
         return gameID;
     }
+
+    public String getVisitorName() { return visitorName; }
+    public String getRole() { return role; }
+    public ChessGame getGame() { return game; }
+
 }
