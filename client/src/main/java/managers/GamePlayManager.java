@@ -23,11 +23,10 @@ public class GamePlayManager {
     public GamePlayManager(GameManager parent, Renderer renderer) {
         this.parent = parent;
         this.renderer = renderer;
-        this.myColor = parent.myColor;
+        this.myColor = parent.myColor != null ? parent.myColor : ChessGame.TeamColor.WHITE;
         this.currentGameID = parent.currentGameID;
     }
 
-    // Called ONLY when WebSocket receives LOAD_GAME
     public void updateGame(ChessGame game) {
         this.currentGame = game;
         checkGameOverConditions();
@@ -35,7 +34,9 @@ public class GamePlayManager {
     }
 
     private void checkGameOverConditions() {
-        if (currentGame == null) return;
+        if (currentGame == null) {
+            return;
+        }
         if (currentGame.isInCheckmate(ChessGame.TeamColor.WHITE) ||
                 currentGame.isInCheckmate(ChessGame.TeamColor.BLACK) ||
                 currentGame.isInStalemate(ChessGame.TeamColor.WHITE) ||
@@ -46,10 +47,9 @@ public class GamePlayManager {
     }
 
     public void playChess() {
-        if (currentGame == null) {
-//            renderer.enqueueRenderTask("Connecting to game... waiting for board");
-            return;
-        }
+//        if (currentGame == null) {
+//            return;
+//        }
 
         renderer.enqueueRenderTask(EscapeSequences.ERASE_SCREEN);
         redrawBoardWithHighlight();
@@ -78,7 +78,7 @@ public class GamePlayManager {
 
         String[] boardLines = boardRenderer.drawBoard(
                 currentGame.getBoard(),
-                myColor == null ? ChessGame.TeamColor.WHITE : myColor,
+                myColor,
                 highlights
         );
         renderer.enqueueRenderTasks(boardLines);
@@ -86,7 +86,9 @@ public class GamePlayManager {
 
     private void parseCommand(String input) {
         String[] parts = input.split("\\s+");
-        if (parts.length == 0) return;
+        if (parts.length == 0) {
+            return;
+        }
         String cmd = parts[0];
 
         switch (cmd) {
@@ -175,7 +177,9 @@ public class GamePlayManager {
         lastHighlightedPosition = pos;
         Set<ChessPosition> highlights = new HashSet<>();
         highlights.add(pos);
-        for (ChessMove m : moves) highlights.add(m.getEndPosition());
+        for (ChessMove m : moves) {
+            highlights.add(m.getEndPosition());
+        }
 
         String[] board = boardRenderer.drawBoard(currentGame.getBoard(),
                 myColor == null ? ChessGame.TeamColor.WHITE : myColor, highlights);
