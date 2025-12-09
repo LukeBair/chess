@@ -24,13 +24,14 @@ public class UserGameCommand {
         this.commandType = commandType;
         this.authToken = authToken;
         this.gameID = gameID;
+
     }
 
     public enum CommandType {
         CONNECT,
-        MAKE_MOVE,
         LEAVE,
-        RESIGN
+        RESIGN,
+        MAKE_MOVE
     }
 
     public CommandType getCommandType() {
@@ -60,13 +61,13 @@ public class UserGameCommand {
         switch  (commandType) {
             case CONNECT:
                 return new ConnectCommand(authToken, gameID);
-            case  MAKE_MOVE:
-                ChessMove chessMove = gson.fromJson(jsonObject.get("chessMove"), ChessMove.class);
-                return new MakeMoveCommand(authToken, gameID, chessMove);
             case  LEAVE:
                 return new LeaveCommand(authToken, gameID);
             case  RESIGN:
                 return new ResignCommand(authToken, gameID);
+            case MAKE_MOVE:
+                ChessMove move = gson.fromJson(jsonObject.get("move"), ChessMove.class);
+                return new MakeMoveCommand(authToken, gameID, move);
             default:
                 return null;
         }

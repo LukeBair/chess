@@ -208,7 +208,7 @@ public class GameService {
         boolean isBlackPlayer = game.blackUsername() != null && game.blackUsername().equals(username);
 
         if (!isWhitePlayer && !isBlackPlayer) {
-            throw new InvalidMoveException("Observers cannot resign");
+            throw new IllegalStateException("Resign failed: Observers cannot resign");
         }
 
         ChessGame chessGame = game.game();

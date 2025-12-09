@@ -14,7 +14,7 @@ public class LoadGameMessage extends ServerMessage {
         this.visitorName = visitorName;
         this.role = role;
         this.gameID = gameID;
-        this.message = visitorName + " joined as " + role;
+        this.message = null;
         this.game = game;
     }
 

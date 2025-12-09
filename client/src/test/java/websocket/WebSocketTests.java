@@ -6,8 +6,6 @@ import org.junit.jupiter.api.Test;
 import websocket.commands.MakeMoveCommand;
 import websocket.commands.UserGameCommand;
 
-import javax.swing.text.Position;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -21,6 +19,6 @@ public class WebSocketTests {
         assertTrue(json.contains("\"row\":6"));
         UserGameCommand deserialized = UserGameCommand.fromJson(json);
         assertEquals(UserGameCommand.CommandType.MAKE_MOVE, deserialized.getCommandType());
-        assertEquals(6, ((MakeMoveCommand) deserialized).getChessMove().getStartPosition().getRow());
+        assertEquals(6, ((MakeMoveCommand) deserialized).getMove().getStartPosition().getRow());
     }
 }

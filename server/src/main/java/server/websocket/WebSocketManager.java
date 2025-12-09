@@ -6,7 +6,6 @@ import chess.InvalidMoveException;
 import com.google.gson.Gson;
 import dataaccess.DataAccessException;
 import io.javalin.websocket.*;
-import models.AuthData;
 import models.GameData;
 import org.eclipse.jetty.websocket.api.Session;
 import websocket.commands.*;
@@ -105,41 +104,34 @@ public class WebSocketManager implements WsConnectHandler, WsMessageHandler, WsC
         try {
             var updatedGame = gameService.makeMove(
                     gameID,
-                    moveCommand.getChessMove(),
+                    moveCommand.getMove(),
                     username
             );
 
-            MakeMoveMessage loadMsg = new MakeMoveMessage(updatedGame.game());
-            connections.broadcastToGame(gameID, null, loadMsg); // null = send to everyone
+            // THIS IS THE ONLY CHANGE NEEDED
+            LoadGameMessage loadMsg = new LoadGameMessage(null, null, gameID, updatedGame.game());
+            connections.broadcastToGame(gameID, null, loadMsg);
 
             NotificationMessage moveNotif = new NotificationMessage(
-                    username + " moved " + formatMove(moveCommand.getChessMove())
+                    username + " moved " + formatMove(moveCommand.getMove())
             );
-            connections.broadcastToGame(gameID, session, moveNotif);
+            connections.broadcastToGame(gameID, session, moveNotif); // excludes mover
 
-            ChessGame.TeamColor opponentColor = updatedGame.game().getTeamTurn(); // next player to move
+            ChessGame.TeamColor opponentColor = updatedGame.game().getTeamTurn();
 
-            boolean isCheckmate = updatedGame.game().isInCheckmate(opponentColor);
-            boolean isStalemate = updatedGame.game().isInStalemate(opponentColor);
-
-            if (isCheckmate) {
+            if (updatedGame.game().isInCheckmate(opponentColor)) {
                 String winner = opponentColor == ChessGame.TeamColor.WHITE ? "Black" : "White";
-                NotificationMessage checkmateNotif = new NotificationMessage(
-                        "Checkmate! " + winner + " wins!"
-                );
-                connections.broadcastToGame(gameID, null, checkmateNotif);
-            } else if (isStalemate) {
-                NotificationMessage stalemateNotif = new NotificationMessage(
-                        "Stalemate! Game is a draw."
-                );
-                connections.broadcastToGame(gameID, null, stalemateNotif);
+                NotificationMessage notif = new NotificationMessage("Checkmate! " + winner + " wins!");
+                connections.broadcastToGame(gameID, null, notif);
+            } else if (updatedGame.game().isInStalemate(opponentColor)) {
+                NotificationMessage notif = new NotificationMessage("Stalemate! Game is a draw.");
+                connections.broadcastToGame(gameID, null, notif);
             } else if (updatedGame.game().isInCheck(opponentColor)) {
-                NotificationMessage checkNotif = new NotificationMessage("Check!");
-                connections.broadcastToGame(gameID, null, checkNotif);
+                NotificationMessage notif = new NotificationMessage("Check!");
+                connections.broadcastToGame(gameID, null, notif);
             }
 
         } catch (Exception e) {
-            // Send error only to the client who made the invalid move
             sendError(session, "Error: " + e.getMessage());
         }
     }
@@ -166,18 +158,25 @@ public class WebSocketManager implements WsConnectHandler, WsMessageHandler, WsC
     private void handleResign(UserGameCommand command, String username, Session session) throws IOException {
         int gameID = command.getGameID();
 
-        NotificationMessage notification;
         try {
+            // This method should throw specific exceptions for invalid cases
             gameService.resignGame(gameID, username);
-            notification = new NotificationMessage(
-                    username + " resigned. Game over."
-            );
-        } catch (DataAccessException | InvalidMoveException e) {
-            // TODO: prolly make nicer
-            notification = new NotificationMessage("Resign failed: " + e.getMessage());
-        }
 
-        connections.broadcastToGame(gameID, null, notification);
+            // Only reaches here if resign was VALID
+            NotificationMessage notification = new NotificationMessage(
+                    username + " has resigned. Game over."
+            );
+            connections.broadcastToGame(gameID, null, notification); // send to everyone
+
+        } catch (DataAccessException e) {
+            sendError(session, "Server error: " + e.getMessage());
+
+        } catch (IllegalStateException e) {
+            sendError(session, e.getMessage());
+
+        } catch (InvalidMoveException e) {
+            sendError(session, e.getMessage());
+        }
     }
 
     private void sendError(Session session, String errorMessage) {
