@@ -32,10 +32,8 @@ public class ServerFacade {
         HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
         if (response.statusCode() == 200) {
-            // Parse success response into models.AuthData
             return gson.fromJson(response.body(), AuthData.class);
         } else {
-            // Handle error (e.g., throw custom exception or return null)
             throw new RuntimeException("Registration failed: " + response.body());
         }
     }
@@ -130,12 +128,12 @@ public class ServerFacade {
         return joinGame(gameId, "UNASSIGNED", authToken);  // Reuse
     }
 
-    public void test() throws IOException, InterruptedException {
+    public void erase() throws IOException, InterruptedException {
         HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(baseUrl + "test"))
-                .GET()
+                .uri(URI.create(baseUrl + "db"))
+                .DELETE()
                 .build();
 
-        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+        httpClient.send(request, HttpResponse.BodyHandlers.ofString());
     }
 }

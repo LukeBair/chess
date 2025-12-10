@@ -3,7 +3,6 @@ package server;
 import com.google.gson.Gson;
 import dataaccess.DataAccess;
 import dataaccess.DataAccessException;
-import dataaccess.MemoryDataAccess;
 import dataaccess.SQLDataAccess;
 import io.javalin.Javalin;
 import io.javalin.http.Context;
@@ -20,18 +19,14 @@ import java.util.Map;
 public class Server {
 
     private final Javalin javalin;
-
     private final GameService gameService;
     private final UserService userService;
     private final ClearService clearService;
     private final WebSocketManager webSocketHandler;
-
-    private final Gson gson;
+    private final Gson gson = new Gson();
 
     public Server() {
-        DataAccess dataAccess = new MemoryDataAccess();
         SQLDataAccess sqlDataAccess;
-
         try {
             sqlDataAccess = new SQLDataAccess();
         } catch (DataAccessException e) {
@@ -42,7 +37,6 @@ public class Server {
         this.gameService = new GameService(sqlDataAccess);
         this.clearService = new ClearService(sqlDataAccess);
         this.webSocketHandler = new WebSocketManager(gameService, userService);
-        this.gson = new Gson();
 
         javalin = Javalin.create(config -> {
             config.staticFiles.add("web");
@@ -51,14 +45,15 @@ public class Server {
             });
         });
 
+        // Global exception handlers
+        javalin.exception(DataAccessException.class, (e, ctx) -> {
+            sendErrorResponse(ctx, 500, e.getMessage());
+        });
         javalin.exception(Exception.class, (e, ctx) -> {
             sendErrorResponse(ctx, 500, e.getMessage());
         });
 
-        javalin.exception(DataAccessException.class, (e, ctx) -> {
-            sendErrorResponse(ctx, 500, e.getMessage());
-        });
-
+        // Routes
         javalin.post("/user", this::registerUser);
         javalin.post("/session", this::login);
         javalin.delete("/session", this::logout);
@@ -66,182 +61,159 @@ public class Server {
         javalin.post("/game", this::createGame);
         javalin.put("/game", this::joinGame);
         javalin.delete("/db", this::clear);
-        javalin.get("/test", this::clear);
-        javalin.ws("/ws", wsConfig -> {
-            wsConfig.onConnect(webSocketHandler);
-            wsConfig.onClose(webSocketHandler);
-            wsConfig.onMessage(webSocketHandler);
+
+        javalin.ws("/ws", ws -> {
+            ws.onConnect(webSocketHandler);
+            ws.onClose(webSocketHandler);
+            ws.onMessage(webSocketHandler);
         });
     }
 
     private void sendErrorResponse(@NotNull Context ctx, int status, String message) {
         ctx.status(status);
-        String json = gson.toJson(Map.of("message", "Error: " + message));
-        ctx.result(json);
         ctx.contentType("application/json");
+        ctx.result(gson.toJson(Map.of("message", "Error: " + message)));
     }
 
     private void sendSuccessResponse(@NotNull Context ctx, Map<String, Object> data) {
         ctx.status(200);
-        String json = gson.toJson(data);
-        ctx.result(json);
         ctx.contentType("application/json");
+        ctx.result(gson.toJson(data));
     }
 
     private String getAuthToken(@NotNull Context ctx) {
-        String authToken = ctx.header("Authorization");
-        if (authToken == null) {
-            sendErrorResponse(ctx, 401, "unauthorized");
-        }
-        return authToken;
+        return ctx.header("Authorization");
     }
 
-    private void handleResult(@NotNull Context ctx, Object result, Runnable successResponse) {
+    private void handleResult(@NotNull Context ctx, Object result, Runnable onSuccess) {
+        String message = getMessageFromResult(result);
+        if (message != null) {
+            int status = determineStatus(message);
+            sendErrorResponse(ctx, status, message);
+        } else {
+            onSuccess.run();
+        }
+    }
+
+    private String getMessageFromResult(Object result) {
+        if (result instanceof RegisterResult r) {
+            return r.message();
+        }
+        if (result instanceof LoginResult r) {
+            return r.message();
+        }
+        if (result instanceof LogoutResult(String message)) {
+            return message;
+        }
+        if (result instanceof CreateGameResult r) {
+            return r.message();
+        }
+        if (result instanceof JoinGameResult(String message)) {
+            return message;
+        }
+        if (result instanceof ListGamesResult r) {
+            return r.message();
+        }
+
+        return null;
+    }
+
+    private int determineStatus(String message) {
+        if (message == null) return 200;
+        String lower = message.toLowerCase();
+        if (lower.contains("bad request") || lower.contains("invalid")) return 400;
+        if (lower.contains("unauthorized")) return 401;
+        if (lower.contains("already taken")) return 403;
+        return 500;
+    }
+
+    // ====================== ENDPOINTS ======================
+
+    private void clear(@NotNull Context ctx) {
         try {
-            String message = getMessageFromResult(result);
-            if (message != null) {
-                int status = determineStatus(message);
-                sendErrorResponse(ctx, status, message);
-                return;
-            }
-            successResponse.run();
+            clearService.clear();
+            sendSuccessResponse(ctx, Map.of());
         } catch (Exception e) {
             sendErrorResponse(ctx, 500, e.getMessage());
         }
     }
 
-    private String getMessageFromResult(Object result) {
-        if (result instanceof RegisterResult regRes) {
-            return regRes.message();
-        } else if (result instanceof LoginResult loginRes) {
-            return loginRes.message();
-        } else if (result instanceof LogoutResult(String message)) {
-            return message;
-        } else if (result instanceof CreateGameResult createRes) {
-            return createRes.message();
-        } else if (result instanceof JoinGameResult(String message)) {
-            return message;
-        } else if (result instanceof ListGamesResult listRes) {
-            return listRes.message();
-        }
-        return null;
-    }
-
-    private int determineStatus(String message) {
-        if (message == null) {
-            return 200;
-        }
-        if (message.contains("bad request")) {
-            return 400;
-        } else if (message.contains("unauthorized")) {
-            return 401;
-        } else if (message.contains("already taken")) {
-            return 403;
-        } else {
-            return 500;
-        }
-    }
-
-    private void clear(@NotNull Context context) {
+    private void registerUser(@NotNull Context ctx) {
         try {
-            clearService.clear();
-            sendSuccessResponse(context, Map.of());
+            RegisterRequest req = gson.fromJson(ctx.body(), RegisterRequest.class);
+            if (req == null || req.username() == null || req.password() == null || req.email() == null) {
+                sendErrorResponse(ctx, 400, "bad request");
+                return;
+            }
+            RegisterResult result = userService.register(req);
+            handleResult(ctx, result, () -> sendSuccessResponse(ctx,
+                    Map.of("username", result.username(), "authToken", result.authToken())));
         } catch (Exception e) {
-            sendErrorResponse(context, 500, e.getMessage());
+            sendErrorResponse(ctx, 500, e.getMessage());
         }
     }
 
-    private void joinGame(@NotNull Context context) {
+    private void login(@NotNull Context ctx) {
         try {
-            String authToken = getAuthToken(context);
-            if (authToken == null) {
+            LoginRequest req = gson.fromJson(ctx.body(), LoginRequest.class);
+            if (req == null || req.username() == null || req.password() == null) {
+                sendErrorResponse(ctx, 400, "bad request");
+                return;
+            }
+            LoginResult result = userService.login(req);
+            handleResult(ctx, result, () -> sendSuccessResponse(ctx,
+                    Map.of("username", result.username(), "authToken", result.authToken())));
+        } catch (Exception e) {
+            sendErrorResponse(ctx, 500, e.getMessage());
+        }
+    }
+
+    private void logout(@NotNull Context ctx) {
+        try {
+            String authToken = getAuthToken(ctx);
+            LogoutResult result = userService.logout(authToken);  // Let service handle null/invalid
+            handleResult(ctx, result, () -> sendSuccessResponse(ctx, Map.of()));
+        } catch (Exception e) {
+            sendErrorResponse(ctx, 500, e.getMessage());
+        }
+    }
+
+    private void createGame(@NotNull Context ctx) {
+        try {
+            String authToken = getAuthToken(ctx);
+            CreateGameRequest req = gson.fromJson(ctx.body(), CreateGameRequest.class);
+
+            if (req == null || req.gameName() == null || req.gameName().isBlank()) {
+                sendErrorResponse(ctx, 400, "bad request");
                 return;
             }
 
-            String body = context.body();
-            JoinGameRequest request = gson.fromJson(body, JoinGameRequest.class);
-            JoinGameResult result = gameService.joinGame(request, authToken);
-            handleResult(context, result, () -> {
-                sendSuccessResponse(context, Map.of());
-            });
+            CreateGameResult result = gameService.createGame(req, authToken);
+            handleResult(ctx, result, () -> sendSuccessResponse(ctx, Map.of("gameID", result.gameID())));
         } catch (Exception e) {
-            sendErrorResponse(context, 400, "bad request");
+            sendErrorResponse(ctx, 500, e.getMessage());
         }
     }
 
-    private void createGame(@NotNull Context context) {
+    private void listGames(@NotNull Context ctx) {
         try {
-            String authToken = getAuthToken(context);
-            if (authToken == null) {
-                return;
-            }
-
-            String body = context.body();
-            CreateGameRequest request = gson.fromJson(body, CreateGameRequest.class);
-            CreateGameResult result = gameService.createGame(request, authToken);
-            handleResult(context, result, () -> {
-                sendSuccessResponse(context, Map.of("gameID", result.gameID()));
-            });
+            String authToken = getAuthToken(ctx);
+            ListGamesResult result = gameService.listGames(authToken);  // Will throw if DB down or token invalid
+            handleResult(ctx, result, () -> sendSuccessResponse(ctx, Map.of("games", result.games())));
         } catch (Exception e) {
-            sendErrorResponse(context, 400, "bad request");
+            sendErrorResponse(ctx, 500, e.getMessage());
         }
     }
 
-    private void listGames(@NotNull Context context) {
+    private void joinGame(@NotNull Context ctx) {
         try {
-            String authToken = getAuthToken(context);
-            if (authToken == null) {
-                return;
-            }
+            String authToken = getAuthToken(ctx);
+            JoinGameRequest req = gson.fromJson(ctx.body(), JoinGameRequest.class);
 
-            ListGamesResult result = gameService.listGames(authToken);
-            handleResult(context, result, () -> {
-                sendSuccessResponse(context, Map.of("games", result.games()));
-            });
+            JoinGameResult result = gameService.joinGame(req, authToken);
+            handleResult(ctx, result, () -> sendSuccessResponse(ctx, Map.of()));
         } catch (Exception e) {
-            sendErrorResponse(context, 500, e.getMessage());
-        }
-    }
-
-    private void logout(@NotNull Context context) {
-        try {
-            String authToken = getAuthToken(context);
-            if (authToken == null) {
-                return;
-            }
-
-            LogoutResult result = userService.logout(authToken);
-            handleResult(context, result, () -> {
-                sendSuccessResponse(context, Map.of());
-            });
-        } catch (Exception e) {
-            sendErrorResponse(context, 500, e.getMessage());
-        }
-    }
-
-    private void login(@NotNull Context context) {
-        try {
-            String body = context.body();
-            LoginRequest request = gson.fromJson(body, LoginRequest.class);
-            LoginResult result = userService.login(request);
-            handleResult(context, result, () -> {
-                sendSuccessResponse(context, Map.of("username", result.username(), "authToken", result.authToken()));
-            });
-        } catch (Exception e) {
-            sendErrorResponse(context, 400, "bad request");
-        }
-    }
-
-    private void registerUser(@NotNull Context context) {
-        try {
-            String body = context.body();
-            RegisterRequest request = gson.fromJson(body, RegisterRequest.class);
-            RegisterResult result = userService.register(request);
-            handleResult(context, result, () -> {
-                sendSuccessResponse(context, Map.of("username", result.username(), "authToken", result.authToken()));
-            });
-        } catch (Exception e) {
-            sendErrorResponse(context, 400, "bad request");
+            sendErrorResponse(ctx, 500, e.getMessage());
         }
     }
 

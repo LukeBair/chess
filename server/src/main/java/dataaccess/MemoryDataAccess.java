@@ -15,6 +15,7 @@ public class MemoryDataAccess implements DataAccess {
         auths.clear();
         nextGameID = 1;
     }
+    
     @Override
     public void insertUser(UserData user) throws DataAccessException {
         if (users.containsKey(user.username())) {

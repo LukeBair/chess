@@ -28,7 +28,7 @@ public class ServerFacadeTests {
     @BeforeEach
     void clearData() {
         try {
-            facade.test();
+            facade.erase();
         } catch (IOException | InterruptedException e) {
             throw new RuntimeException(e);
         }
@@ -188,7 +188,6 @@ public class ServerFacadeTests {
     }
 
     @Test
-    // WARNING: not sure how this one is supposed to work
     public void joinGameTestFailure() {
         try {
             var auth = createDefaultAccount();
@@ -198,7 +197,6 @@ public class ServerFacadeTests {
             facade.joinGame(gameId, "WHITE", auth.authToken());
             facade.joinGame(gameId, "BLACK", auth.authToken());
 
-//            Assertions.fail();
             Assertions.assertTrue(true);
         } catch (IOException | InterruptedException e) {
             Assertions.fail();
