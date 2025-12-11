@@ -20,6 +20,8 @@ public class GamePlayManager {
     private boolean isGameOver = false;
     private String gameOverMessage = null;
 
+    private boolean isObserver = false;
+
     public GamePlayManager(GameManager parent, Renderer renderer) {
         this.parent = parent;
         this.renderer = renderer;
@@ -47,10 +49,11 @@ public class GamePlayManager {
     }
 
     public void playChess() {
-
         renderer.enqueueRenderTask(EscapeSequences.ERASE_SCREEN);
-        redrawBoardWithHighlight();
-        displayGameplayHelp();
+        if (currentGame != null) {
+            redrawBoardWithHighlight();
+            displayGameplayHelp();
+        }
 
         String input = parent.getInput().trim().toLowerCase();
         if (!input.isEmpty()) {
@@ -89,8 +92,7 @@ public class GamePlayManager {
         String cmd = parts[0];
 
         switch (cmd) {
-            case "help" -> { redrawBoardWithHighlight(); displayGameplayHelp(); }
-            case "redraw" -> { redrawBoardWithHighlight(); displayGameplayHelp(); }
+            case "help", "redraw" -> { redrawBoardWithHighlight(); displayGameplayHelp(); }
             case "clear", "unhighlight" -> {
                 lastHighlightedPosition = null;
                 redrawBoardWithHighlight();
@@ -195,6 +197,10 @@ public class GamePlayManager {
     }
 
     private void handleResign() {
+        if (isObserver) {
+            return;
+        }
+
         if (isGameOver) {
             renderer.enqueueRenderTask("Game is already over.");
             return;
@@ -260,5 +266,21 @@ public class GamePlayManager {
     public void setGameOver(String message) {
         isGameOver = true;
         gameOverMessage = "Game Over " + message;
+    }
+
+    public void setIDIfNotNull(int gameID) {
+        if (gameID != currentGameID) {
+            isGameOver = false;
+            gameOverMessage = "";
+        }
+        this.currentGameID = gameID;
+    }
+
+    public void setTeamColor(ChessGame.TeamColor teamColor) {
+        this.myColor = teamColor;
+    }
+
+    public void setIsObserver(boolean isObserver) {
+        this.isObserver = isObserver;
     }
 }

@@ -13,6 +13,8 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 
+import static websocket.messages.ServerMessage.ServerMessageType.LOAD_GAME;
+
 public class WebSocketFacade extends Endpoint {
     Session session;
     private final Renderer renderer;
@@ -79,6 +81,10 @@ public class WebSocketFacade extends Endpoint {
 
                     if (game != null) {
                         // Update the game in Managers.GameManager and trigger automatic redraw
+                        gameManager.setIDIfNotNull(loadGame.getGameID());
+                        if (loadGame.getRole() != null) {
+                            gameManager.setTeamColor(ChessGame.TeamColor.valueOf(loadGame.getRole().toUpperCase()));
+                        }
                         gameManager.updateGame(game);
                     } else {
                         renderer.enqueueRenderTask("\n[ERROR] Received LOAD_GAME with null game");
@@ -86,7 +92,16 @@ public class WebSocketFacade extends Endpoint {
                 }
             }
         } catch (Exception e) {
-            renderer.enqueueRenderTask("\n[ERROR] Failed to process server message: " + e.getMessage());
+
+            if (e.getMessage().equalsIgnoreCase("No enum constant chess.ChessGame.TeamColor.OBSERVER")) {
+                LoadGameMessage loadGame = gson.fromJson(message, LoadGameMessage.class);
+                ChessGame game = loadGame.getGame();
+                gameManager.setTeamColor(ChessGame.TeamColor.WHITE);
+                gameManager.setIsObserver(true);
+                gameManager.updateGame(game);
+            } else {
+                renderer.enqueueRenderTask("\n[ERROR] Failed to process server message: " + e.getMessage());
+            }
         }
     }
 

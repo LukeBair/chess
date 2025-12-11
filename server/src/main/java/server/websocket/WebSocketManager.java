@@ -48,7 +48,7 @@ public class WebSocketManager implements WsConnectHandler, WsMessageHandler, WsC
 
             // Route to appropriate handler based on command type
             switch (baseCommand.getCommandType()) {
-                case CONNECT -> handleConnect(baseCommand, ctx.session);
+                case CONNECT -> handleConnectToGame(baseCommand, ctx.session);
                 case MAKE_MOVE -> handleMakeMove(ctx.message(), username, ctx.session);
                 case LEAVE -> handleLeave(baseCommand, username, ctx.session);
                 case RESIGN -> handleResign(baseCommand, username, ctx.session);
@@ -75,7 +75,7 @@ public class WebSocketManager implements WsConnectHandler, WsMessageHandler, WsC
         }
     }
 
-    private void handleConnect(UserGameCommand command, Session session) throws IOException {
+    private void handleConnectToGame(UserGameCommand command, Session session) throws IOException {
         String authToken = command.getAuthToken();
         int gameID = command.getGameID();
 
@@ -96,7 +96,7 @@ public class WebSocketManager implements WsConnectHandler, WsMessageHandler, WsC
             return;
         }
         connections.add(session, gameID);
-        LoadGameMessage loadMsg = new LoadGameMessage(null, null, gameID, game.game());
+        LoadGameMessage loadMsg = new LoadGameMessage(username, role, gameID, game.game());
         connections.sendToSession(session, loadMsg);
 
         String joinMessage = switch (role.toLowerCase()) {
@@ -120,7 +120,9 @@ public class WebSocketManager implements WsConnectHandler, WsMessageHandler, WsC
             );
 
             // THIS IS THE ONLY CHANGE NEEDED
-            LoadGameMessage loadMsg = new LoadGameMessage(null, null, gameID, updatedGame.game());
+            LoadGameMessage loadMsg = new LoadGameMessage(username,
+                   null,
+                    gameID, updatedGame.game());
             connections.broadcastToGame(gameID, null, loadMsg);
 
             NotificationMessage moveNotif = new NotificationMessage(
@@ -182,11 +184,9 @@ public class WebSocketManager implements WsConnectHandler, WsMessageHandler, WsC
         } catch (DataAccessException e) {
             sendError(session, "Server error: " + e.getMessage());
 
-        } catch (IllegalStateException e) {
+        } catch (IllegalStateException | InvalidMoveException e) {
             sendError(session, e.getMessage());
 
-        } catch (InvalidMoveException e) {
-            sendError(session, e.getMessage());
         }
     }
 
